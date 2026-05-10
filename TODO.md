@@ -1,0 +1,3 @@
+- [ ] Replace current navbar profile icon with `inline svg user icon.png`.
+- [ ] Keep circular avatar styling for the new profile image.
+- [ ] Verify markup/CSS consistency.
