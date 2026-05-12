@@ -1,51 +1,12 @@
 <?php
 session_start();
 include '../config/db.php';
-include '../includes/header.php';
 
 if (!isset($_SESSION['cart'])) {
     $_SESSION['cart'] = [];
 }
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    if (isset($_POST['remove_item'])) {
-        $removeId = isset($_POST['product_id']) ? (int)$_POST['product_id'] : 0;
-        if ($removeId > 0 && isset($_SESSION['cart'][$removeId])) {
-            unset($_SESSION['cart'][$removeId]);
-        }
-        header('Location: /alke/pages/cart.php');
-        exit;
-    }
-
-    if (isset($_POST['increase_qty'])) {
-        $updateId = isset($_POST['product_id']) ? (int)$_POST['product_id'] : 0;
-        if ($updateId > 0 && isset($_SESSION['cart'][$updateId])) {
-            $_SESSION['cart'][$updateId] += 1;
-        }
-        header('Location: /alke/pages/cart.php');
-        exit;
-    }
-
-    if (isset($_POST['decrease_qty'])) {
-        $updateId = isset($_POST['product_id']) ? (int)$_POST['product_id'] : 0;
-        if ($updateId > 0 && isset($_SESSION['cart'][$updateId])) {
-            $currentQty = (int)$_SESSION['cart'][$updateId];
-            if ($currentQty <= 1) {
-                unset($_SESSION['cart'][$updateId]);
-            } else {
-                $_SESSION['cart'][$updateId] = $currentQty - 1;
-            }
-        }
-        header('Location: /alke/pages/cart.php');
-        exit;
-    }
-
-    if (isset($_POST['clear_cart'])) {
-        $_SESSION['cart'] = [];
-        header('Location: /alke/pages/cart.php');
-        exit;
-    }
-}
+include '../includes/header.php';
 
 $cartItems = [];
 $totalPrice = 0;
@@ -105,9 +66,9 @@ if (!empty($_SESSION['cart'])) {
                 <th>Action</th>
               </tr>
             </thead>
-            <tbody>
+            <tbody id="cartTableBody">
               <?php foreach ($cartItems as $item): ?>
-                <tr>
+                <tr class="cart-row" data-product-id="<?php echo (int)$item['id']; ?>" data-price="<?php echo (float)$item['price']; ?>">
                   <td>
                     <a href="/alke/pages/product.php?id=<?php echo (int)$item['id']; ?>" class="cart-thumb-link" aria-label="View <?php echo htmlspecialchars($item['name']); ?> details">
                       <img
@@ -118,26 +79,17 @@ if (!empty($_SESSION['cart'])) {
                     </a>
                   </td>
                   <td><?php echo htmlspecialchars($item['name']); ?></td>
-                  <td>$<?php echo number_format((float)$item['price'], 2); ?></td>
+                  <td class="item-price">$<?php echo number_format((float)$item['price'], 2); ?></td>
                   <td>
                     <div class="qty-control">
-                      <form method="POST" action="/alke/pages/cart.php">
-                        <input type="hidden" name="product_id" value="<?php echo (int)$item['id']; ?>">
-                        <button type="submit" name="decrease_qty" class="qty-btn">−</button>
-                      </form>
+                      <button type="button" class="qty-btn js-qty-btn" data-direction="decrease">−</button>
                       <span class="qty-value"><?php echo (int)$item['quantity']; ?></span>
-                      <form method="POST" action="/alke/pages/cart.php">
-                        <input type="hidden" name="product_id" value="<?php echo (int)$item['id']; ?>">
-                        <button type="submit" name="increase_qty" class="qty-btn">+</button>
-                      </form>
+                      <button type="button" class="qty-btn js-qty-btn" data-direction="increase">+</button>
                     </div>
                   </td>
-                  <td>$<?php echo number_format((float)$item['subtotal'], 2); ?></td>
+                  <td class="item-subtotal">$<?php echo number_format((float)$item['subtotal'], 2); ?></td>
                   <td>
-                    <form method="POST" action="/alke/pages/cart.php">
-                      <input type="hidden" name="product_id" value="<?php echo (int)$item['id']; ?>">
-                      <button type="submit" name="remove_item" class="btn product-btn">Remove</button>
-                    </form>
+                    <button type="button" class="btn product-btn js-remove-item">Remove</button>
                   </td>
                 </tr>
               <?php endforeach; ?>
@@ -146,12 +98,10 @@ if (!empty($_SESSION['cart'])) {
         </div>
 
         <div class="cart-summary">
-          <h3>Total: $<?php echo number_format((float)$totalPrice, 2); ?></h3>
+          <h3 id="cartTotalText">Total: $<?php echo number_format((float)$totalPrice, 2); ?></h3>
 
           <div class="product-details-actions">
-            <form method="POST" action="/alke/pages/cart.php">
-              <button type="submit" name="clear_cart" class="btn product-btn">Clear Cart</button>
-            </form>
+            <button type="button" id="clearCartBtn" class="btn product-btn">Clear Cart</button>
             <a href="/alke/pages/products.php" class="btn">Continue Shopping</a>
             <a href="/alke/pages/checkout.php" class="btn">Proceed to Checkout</a>
           </div>
@@ -165,5 +115,152 @@ if (!empty($_SESSION['cart'])) {
     </div>
   </section>
 </main>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  const tableBody = document.getElementById('cartTableBody');
+  const totalEl = document.getElementById('cartTotalText');
+  const clearCartBtn = document.getElementById('clearCartBtn');
+
+  function postCart(action, productId, quantity) {
+    const data = new FormData();
+    data.append('action', action);
+    data.append('product_id', productId || 0);
+    if (typeof quantity !== 'undefined') {
+      data.append('quantity', quantity);
+    }
+
+    return fetch('/alke/pages/update_cart.php', {
+      method: 'POST',
+      body: data
+    }).then(function (res) { return res.json(); });
+  }
+
+  function updateBadge(count) {
+    const badge = document.querySelector('.cart-count-badge');
+    const toggleBtn = document.getElementById('cartDrawerToggle');
+
+    if (badge) {
+      if (Number(count) > 0) {
+        badge.textContent = count;
+      } else {
+        badge.remove();
+      }
+      return;
+    }
+
+    if (toggleBtn && Number(count) > 0) {
+      const span = document.createElement('span');
+      span.className = 'cart-count-badge';
+      span.textContent = count;
+      toggleBtn.appendChild(span);
+    }
+  }
+
+  function recalcTotal() {
+    if (!tableBody || !totalEl) return;
+    let total = 0;
+    tableBody.querySelectorAll('.cart-row').forEach(function (row) {
+      const subtotalText = row.querySelector('.item-subtotal') ? row.querySelector('.item-subtotal').textContent : '$0';
+      const subtotal = parseFloat(subtotalText.replace('$', '').trim()) || 0;
+      total += subtotal;
+    });
+    totalEl.textContent = 'Total: $' + total.toFixed(2);
+  }
+
+  if (tableBody) {
+    tableBody.addEventListener('click', function (e) {
+      const qtyBtn = e.target.closest('.js-qty-btn');
+      const removeBtn = e.target.closest('.js-remove-item');
+      if (!qtyBtn && !removeBtn) return;
+
+      const row = e.target.closest('.cart-row');
+      if (!row) return;
+
+      const productId = row.getAttribute('data-product-id');
+      const unitPrice = parseFloat(row.getAttribute('data-price')) || 0;
+      const qtyEl = row.querySelector('.qty-value');
+      let currentQty = parseInt(qtyEl.textContent, 10) || 1;
+
+      if (qtyBtn) {
+        const direction = qtyBtn.getAttribute('data-direction');
+        const newQty = direction === 'increase' ? currentQty + 1 : currentQty - 1;
+
+        postCart('update', productId, newQty)
+          .then(function (data) {
+            if (!data || !data.success) {
+              alert('Could not update quantity.');
+              return;
+            }
+
+            updateBadge(data.cart_count);
+
+            if (newQty <= 0) {
+              row.remove();
+            } else {
+              qtyEl.textContent = String(newQty);
+              const subtotalCell = row.querySelector('.item-subtotal');
+              subtotalCell.textContent = '$' + (unitPrice * newQty).toFixed(2);
+            }
+
+            if (!tableBody.querySelector('.cart-row')) {
+              window.location.reload();
+              return;
+            }
+
+            recalcTotal();
+          })
+          .catch(function () {
+            alert('Request failed. Please try again.');
+          });
+      }
+
+      if (removeBtn) {
+        postCart('remove', productId)
+          .then(function (data) {
+            if (!data || !data.success) {
+              alert('Could not remove item.');
+              return;
+            }
+
+            row.remove();
+            updateBadge(data.cart_count);
+
+            if (!tableBody.querySelector('.cart-row')) {
+              window.location.reload();
+              return;
+            }
+
+            recalcTotal();
+          })
+          .catch(function () {
+            alert('Request failed. Please try again.');
+          });
+      }
+    });
+  }
+
+  if (clearCartBtn) {
+    clearCartBtn.addEventListener('click', function () {
+      const rows = document.querySelectorAll('.cart-row');
+      if (!rows.length) return;
+
+      const requests = [];
+      rows.forEach(function (row) {
+        const pid = row.getAttribute('data-product-id');
+        requests.push(postCart('remove', pid));
+      });
+
+      Promise.all(requests)
+        .then(function () {
+          window.location.reload();
+        })
+        .catch(function () {
+          alert('Could not clear cart.');
+        });
+    });
+  }
+});
+</script>
 
 <?php include '../includes/footer.php'; ?>

@@ -12,7 +12,7 @@ if (!isset($_SESSION['cart'])) {
     $_SESSION['cart'] = [];
 }
 
-$miniCartCount = count($_SESSION['cart']);
+$miniCartCount = array_sum(array_map('intval', $_SESSION['cart']));
 
 if (!empty($_SESSION['cart'])) {
     $ids = array_map('intval', array_keys($_SESSION['cart']));

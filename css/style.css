@@ -840,51 +840,211 @@ a.checkout-secondary-btn:focus {
   transform: translateY(-1px);
 }
 
-.profile-card {
-  border: 1px solid #e9e9ee;
+.profile-container {
+  max-width: 860px !important;
+  padding: 0 4px;
+}
+
+.profile-section {
+  margin-bottom: 18px;
+}
+
+.profile-clean-card {
+  background: #fffdfb;
+  border: 1px solid rgba(180, 138, 90, 0.22);
   border-radius: 14px;
-  box-shadow: 0 8px 24px rgba(20, 20, 30, 0.06);
+  box-shadow: 0 14px 28px rgba(31, 31, 31, 0.08);
+  padding: 20px;
 }
 
 .profile-title {
+  margin-bottom: 0;
+}
+
+.profile-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
   margin-bottom: 14px;
+  flex-wrap: wrap;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #ece6dc;
 }
 
-.profile-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 12px;
+.profile-actions-top {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
 }
 
-.profile-item {
-  background: #f8f8fb;
-  border: 1px solid #ececf2;
-  border-radius: 10px;
-  padding: 12px;
+.profile-field-row {
+  padding: 10px 0;
+  border-bottom: 1px solid #ece6dc;
+}
+
+.profile-field-row:last-child {
+  border-bottom: 0;
 }
 
 .profile-label {
-  margin: 0 0 6px;
+  margin: 0 0 5px;
   font-size: 12px;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: #000000 !important;  /* Change #ff0000 to your color */
+  color: var(--muted-text) !important;
 }
 
 .profile-value {
   margin: 0;
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 600;
-  color: #000000;
+  color: var(--primary-color);
   word-break: break-word;
 }
 
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.58);
+  z-index: 1200;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+
+.modal-overlay.is-visible {
+  display: flex;
+}
+
+.modal-content {
+  width: 100%;
+  max-width: 400px;
+  background: #fffdfb;
+  border-radius: 14px;
+  box-shadow: 0 20px 42px rgba(31, 31, 31, 0.24);
+  border: 1px solid rgba(180, 138, 90, 0.28);
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 18px 20px 10px;
+}
+
+.modal-header h3 {
+  margin: 0;
+  color: var(--primary-color);
+  font-size: 1.05rem;
+}
+
+.modal-close {
+  width: 32px;
+  height: 32px;
+  border: 1px solid rgba(180, 138, 90, 0.25);
+  border-radius: 50%;
+  background: #f7f3ed;
+  color: var(--primary-color);
+  font-size: 1.2rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.modal-close:hover {
+  background: #efe8dd;
+}
+
+.modal-body {
+  padding: 0 20px;
+  display: grid;
+  gap: 12px;
+}
+
+.modal-body .checkout-field {
+  margin: 0;
+}
+
+.modal-footer {
+  padding: 16px 20px 20px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.profile-edit-btn {
+  background: var(--accent-color);
+  min-width: 110px;
+  text-align: center;
+  cursor: pointer;
+}
+
+.profile-save-btn {
+  background: var(--primary-color);
+}
+
+.profile-cancel-btn {
+  background: var(--secondary-color);
+}
+
 .profile-order-item {
-  background: #fbfbfd;
-  border: 1px solid #ececf2;
+  background: #fdfdfd;
+  border: 1px solid rgba(182, 181, 181, 0.6);
   border-radius: 10px;
   padding: 12px;
   margin-bottom: 10px;
+}
+
+.profile-order-block {
+  display: block;
+}
+
+.profile-order-items {
+  margin-top: 10px;
+}
+
+.profile-order-item-line {
+  margin-left: 12px;
+}
+
+.profile-empty-message {
+  margin: 10px 0 0;
+}
+
+.profile-toast {
+  right: 20px;
+  bottom: 20px;
+}
+
+@media (max-width: 760px) {
+  .profile-clean-card {
+    padding: 16px;
+  }
+
+  .profile-header {
+    align-items: flex-start;
+  }
+
+  .profile-actions-top {
+    width: 100%;
+  }
+
+  .profile-actions-top .btn {
+    width: 100%;
+    text-align: center;
+  }
+
+  .modal-content {
+    max-width: 100%;
+  }
+
+  .modal-footer .btn {
+    width: 100%;
+    text-align: center;
+  }
 }
 
 .checkout-layout {
@@ -1224,6 +1384,68 @@ a.checkout-secondary-btn:focus {
 @keyframes badgePulse {
   0%, 100% { transform: scale(1); }
   50% { transform: scale(1.08); }
+}
+
+.toast-notification {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  z-index: 9999;
+  min-width: 250px;
+  max-width: min(90vw, 360px);
+  background: #2d2d2d;
+  color: #ffffff;
+  border-radius: 10px;
+  padding: 16px 20px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  opacity: 0;
+  transform: translateX(120%);
+  pointer-events: none;
+}
+
+.toast-notification p {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+.toast-notification.toast-success {
+  background: #2d2d2d;
+}
+
+.toast-notification.toast-error {
+  background: #7a1f1f;
+}
+
+.toast-notification.toast-show {
+  animation: toastSlideIn 0.35s ease forwards;
+}
+
+.toast-notification.toast-hide {
+  animation: toastFadeOut 0.45s ease forwards;
+}
+
+@keyframes toastSlideIn {
+  from {
+    opacity: 0;
+    transform: translateX(120%);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes toastFadeOut {
+  from {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(35px);
+  }
 }
 
 @media (max-width: 480px) {

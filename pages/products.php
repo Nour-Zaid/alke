@@ -6,21 +6,6 @@ if (!isset($_SESSION['cart'])) {
     $_SESSION['cart'] = [];
 }
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_to_cart'])) {
-    $productId = isset($_POST['product_id']) ? (int)$_POST['product_id'] : 0;
-    $quantity = isset($_POST['quantity']) ? max(1, (int)$_POST['quantity']) : 1;
-
-    if ($productId > 0) {
-        if (isset($_SESSION['cart'][$productId])) {
-            $_SESSION['cart'][$productId] += $quantity;
-        } else {
-            $_SESSION['cart'][$productId] = $quantity;
-        }
-    }
-
-    header('Location: /alke/pages/products.php');
-    exit;
-}
 
 include '../includes/header.php';
 $result = $conn->query("SELECT * FROM products ORDER BY id DESC LIMIT 8");
@@ -58,7 +43,7 @@ $result = $conn->query("SELECT * FROM products ORDER BY id DESC LIMIT 8");
               </a>
 
               <div class="product-card-actions">
-                <form method="POST" action="/alke/pages/products.php">
+                <form method="POST" action="/alke/pages/products.php" class="add-to-cart-form" data-product-id="<?php echo (int)$row['id']; ?>">
                   <input type="hidden" name="product_id" value="<?php echo (int)$row['id']; ?>">
                   <input type="hidden" name="quantity" value="1">
                   <button type="submit" name="add_to_cart" class="btn product-btn">Add to Cart</button>
@@ -73,5 +58,82 @@ $result = $conn->query("SELECT * FROM products ORDER BY id DESC LIMIT 8");
     </div>
   </section>
 </main>
+
+<div id="toast-notification" class="toast-notification" role="status" aria-live="polite" aria-atomic="true">
+  <p id="toast-message">Product added to cart!</p>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  const forms = document.querySelectorAll('.add-to-cart-form');
+  const toast = document.getElementById('toast-notification');
+  const toastMessage = document.getElementById('toast-message');
+  let toastTimer = null;
+
+  function updateCartBadge(count) {
+    const badge = document.querySelector('.cart-count-badge');
+    const toggleBtn = document.getElementById('cartDrawerToggle');
+    if (badge) {
+      if (Number(count) > 0) {
+        badge.textContent = count;
+      } else {
+        badge.remove();
+      }
+    } else if (toggleBtn && Number(count) > 0) {
+      const span = document.createElement('span');
+      span.className = 'cart-count-badge';
+      span.textContent = count;
+      toggleBtn.appendChild(span);
+    }
+  }
+
+  function showToast(message, isError) {
+    if (!toast || !toastMessage) return;
+
+    toastMessage.textContent = message;
+    toast.classList.remove('toast-show', 'toast-hide', 'toast-success', 'toast-error');
+    toast.classList.add(isError ? 'toast-error' : 'toast-success');
+    toast.classList.add('toast-show');
+
+    if (toastTimer) {
+      clearTimeout(toastTimer);
+    }
+
+    toastTimer = setTimeout(function () {
+      toast.classList.remove('toast-show');
+      toast.classList.add('toast-hide');
+    }, 3000);
+  }
+
+  forms.forEach(function(form) {
+    form.addEventListener('submit', function (e) {
+      e.preventDefault();
+
+      const productId = form.getAttribute('data-product-id');
+      const formData = new FormData();
+      formData.append('action', 'add');
+      formData.append('product_id', productId);
+      formData.append('quantity', '1');
+
+      fetch('/alke/pages/update_cart.php', {
+        method: 'POST',
+        body: formData
+      })
+      .then(response => response.json())
+      .then(data => {
+        if (data && data.success) {
+          updateCartBadge(data.cart_count);
+          showToast('✓ Product added to cart!', false);
+        } else {
+          showToast('Could not add item to cart.', true);
+        }
+      })
+      .catch(() => {
+        showToast('Request failed. Please try again.', true);
+      });
+    });
+  });
+});
+</script>
 
 <?php include '../includes/footer.php'; ?>
