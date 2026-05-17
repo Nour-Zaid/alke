@@ -8,6 +8,14 @@ $activePage = 'products';
 $message     = '';
 $messageType = '';
 
+/* ── Auto-migrate: add sizes + colors columns if missing ─ */
+foreach (['sizes', 'colors'] as $col) {
+    $chkCol = $conn->query("SHOW COLUMNS FROM products LIKE '$col'");
+    if ($chkCol->num_rows === 0) {
+        $conn->query("ALTER TABLE products ADD COLUMN $col VARCHAR(255) NOT NULL DEFAULT ''");
+    }
+}
+
 /* ── Handle form submissions ────────────────────────── */
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = trim($_POST['action'] ?? '');
@@ -20,6 +28,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $stock       = max(0, (int)($_POST['stock'] ?? 0));
         $category_id = !empty($_POST['category_id']) ? (int)$_POST['category_id'] : null;
         $imageName   = trim($_POST['current_image'] ?? '');
+        $sizes       = implode(',', array_filter(array_map('trim', (array)($_POST['sizes']  ?? []))));
+        $colors      = implode(',', array_filter(array_map('trim', (array)($_POST['colors'] ?? []))));
 
         if ($name === '') {
             $message = 'Product name is required.';
@@ -54,10 +64,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if (empty($message)) {
                 if ($action === 'add_product') {
                     $stmt = $conn->prepare(
-                        "INSERT INTO products (name, description, price, stock, category_id, image)
-                         VALUES (?, ?, ?, ?, ?, ?)"
+                        "INSERT INTO products (name, description, price, stock, category_id, image, sizes, colors)
+                         VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
                     );
-                    $stmt->bind_param('ssdiss', $name, $description, $price, $stock, $category_id, $imageName);
+                    $stmt->bind_param('ssdissss', $name, $description, $price, $stock, $category_id, $imageName, $sizes, $colors);
                     $ok = $stmt->execute();
                     $stmt->close();
                     $message     = $ok ? 'Product added successfully.' : 'Failed to add product: ' . $conn->error;
@@ -65,10 +75,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 } else {
                     $product_id = (int)($_POST['product_id'] ?? 0);
                     $stmt = $conn->prepare(
-                        "UPDATE products SET name=?, description=?, price=?, stock=?, category_id=?, image=?
+                        "UPDATE products SET name=?, description=?, price=?, stock=?, category_id=?, image=?, sizes=?, colors=?
                          WHERE id=?"
                     );
-                    $stmt->bind_param('ssdissi', $name, $description, $price, $stock, $category_id, $imageName, $product_id);
+                    $stmt->bind_param('ssdissssi', $name, $description, $price, $stock, $category_id, $imageName, $sizes, $colors, $product_id);
                     $ok = $stmt->execute();
                     $stmt->close();
                     $message     = $ok ? 'Product updated successfully.' : 'Failed to update product: ' . $conn->error;
@@ -103,6 +113,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
+/* ── Form repopulation on validation error ──────────── */
+$fAction       = 'add_product';
+$fProductId    = 0;
+$fName         = '';
+$fDescription  = '';
+$fPrice        = '';
+$fStock        = '';
+$fCategoryId   = 0;
+$fCurrentImage = '';
+$fSizesArr     = [];
+$fColorsArr    = [];
+
+if (!empty($message) && $messageType === 'danger' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    $fAction       = trim($_POST['action']       ?? 'add_product');
+    $fProductId    = (int)($_POST['product_id']  ?? 0);
+    $fName         = trim($_POST['name']         ?? '');
+    $fDescription  = trim($_POST['description']  ?? '');
+    $fPrice        = trim($_POST['price']        ?? '');
+    $fStock        = trim($_POST['stock']        ?? '');
+    $fCategoryId   = (int)($_POST['category_id'] ?? 0);
+    $fCurrentImage = trim($_POST['current_image'] ?? '');
+    $fSizesArr     = (array)($_POST['sizes']     ?? []);
+    $fColorsArr    = (array)($_POST['colors']    ?? []);
+}
+
 /* ── Fetch data ─────────────────────────────────────── */
 $categories = $conn->query("SELECT id, name FROM categories ORDER BY name");
 $products   = $conn->query("
@@ -127,21 +162,21 @@ include __DIR__ . '/includes/header.php';
   </div>
   <div class="admin-section-body">
     <form method="POST" enctype="multipart/form-data">
-      <input type="hidden" name="action"         id="fAction"       value="add_product">
-      <input type="hidden" name="product_id"     id="fProductId"    value="">
-      <input type="hidden" name="current_image"  id="fCurrentImage" value="">
+      <input type="hidden" name="action"         id="fAction"       value="<?= htmlspecialchars($fAction) ?>">
+      <input type="hidden" name="product_id"     id="fProductId"    value="<?= $fProductId ?>">
+      <input type="hidden" name="current_image"  id="fCurrentImage" value="<?= htmlspecialchars($fCurrentImage) ?>">
 
       <div class="form-row form-row-2">
         <div class="form-group">
           <label for="fName">Product Name *</label>
-          <input type="text" id="fName" name="name" class="form-control" required placeholder="e.g. Classic Black Tee">
+          <input type="text" id="fName" name="name" class="form-control" required placeholder="e.g. Classic Black Tee" value="<?= htmlspecialchars($fName) ?>">
         </div>
         <div class="form-group">
           <label for="fCategory">Category</label>
           <select id="fCategory" name="category_id" class="form-control">
             <option value="">— None —</option>
             <?php if ($categories): $categories->data_seek(0); while ($cat = $categories->fetch_assoc()): ?>
-              <option value="<?= (int)$cat['id'] ?>"><?= htmlspecialchars($cat['name']) ?></option>
+              <option value="<?= (int)$cat['id'] ?>" <?= $fCategoryId === (int)$cat['id'] ? 'selected' : '' ?>><?= htmlspecialchars($cat['name']) ?></option>
             <?php endwhile; endif; ?>
           </select>
         </div>
@@ -150,18 +185,41 @@ include __DIR__ . '/includes/header.php';
       <div class="form-row form-row-2">
         <div class="form-group">
           <label for="fPrice">Price ($) *</label>
-          <input type="number" id="fPrice" name="price" class="form-control" required min="0.01" step="0.01" placeholder="29.99">
+          <input type="number" id="fPrice" name="price" class="form-control" required min="0.01" step="0.01" placeholder="29.99" value="<?= htmlspecialchars($fPrice) ?>">
         </div>
         <div class="form-group">
           <label for="fStock">Stock (units)</label>
-          <input type="number" id="fStock" name="stock" class="form-control" min="0" placeholder="0">
+          <input type="number" id="fStock" name="stock" class="form-control" min="0" placeholder="0" value="<?= htmlspecialchars($fStock) ?>">
         </div>
       </div>
 
       <div class="form-row">
         <div class="form-group">
           <label for="fDescription">Description</label>
-          <textarea id="fDescription" name="description" class="form-control" rows="3" placeholder="Optional product description..."></textarea>
+          <textarea id="fDescription" name="description" class="form-control" rows="3" placeholder="Optional product description..."><?= htmlspecialchars($fDescription) ?></textarea>
+        </div>
+      </div>
+
+      <div class="form-row form-row-2">
+        <div class="form-group">
+          <label>Sizes Available</label>
+          <div class="checkbox-group" id="fSizesGroup">
+            <?php foreach (['XS','S','M','L','XL','XXL'] as $sz): ?>
+              <label class="check-label">
+                <input type="checkbox" name="sizes[]" value="<?= $sz ?>" <?= in_array($sz, $fSizesArr) ? 'checked' : '' ?>> <?= $sz ?>
+              </label>
+            <?php endforeach; ?>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Colors Available</label>
+          <div class="checkbox-group" id="fColorsGroup">
+            <?php foreach (['Black','White','Gray','Navy','Beige','Brown','Red','Blue','Green'] as $cl): ?>
+              <label class="check-label">
+                <input type="checkbox" name="colors[]" value="<?= $cl ?>" <?= in_array($cl, $fColorsArr) ? 'checked' : '' ?>> <?= $cl ?>
+              </label>
+            <?php endforeach; ?>
+          </div>
         </div>
       </div>
 
@@ -189,6 +247,7 @@ include __DIR__ . '/includes/header.php';
   </div>
 
   <?php if ($products && $products->num_rows > 0): ?>
+    <div style="overflow-x:auto;">
     <table class="admin-table">
       <thead>
         <tr>
@@ -198,6 +257,8 @@ include __DIR__ . '/includes/header.php';
           <th>Category</th>
           <th>Price</th>
           <th>Stock</th>
+          <th>Sizes</th>
+          <th>Colors</th>
           <th style="width:130px;">Actions</th>
         </tr>
       </thead>
@@ -221,6 +282,8 @@ include __DIR__ . '/includes/header.php';
                 <?= $s ?>
               </span>
             </td>
+            <td style="font-size:0.78rem; color:#666; white-space:nowrap;"><?= htmlspecialchars($p['sizes']  ?? '') ?: '—' ?></td>
+            <td style="font-size:0.78rem; color:#666; white-space:nowrap;"><?= htmlspecialchars($p['colors'] ?? '') ?: '—' ?></td>
             <td style="white-space:nowrap;">
               <button
                 type="button"
@@ -232,6 +295,8 @@ include __DIR__ . '/includes/header.php';
                 data-stock="<?= (int)$p['stock'] ?>"
                 data-category="<?= (int)($p['category_id'] ?? 0) ?>"
                 data-image="<?= htmlspecialchars($dbImg, ENT_QUOTES) ?>"
+                data-sizes="<?= htmlspecialchars($p['sizes'] ?? '', ENT_QUOTES) ?>"
+                data-colors="<?= htmlspecialchars($p['colors'] ?? '', ENT_QUOTES) ?>"
               >Edit</button>
 
               <form method="POST" style="display:inline;"
@@ -245,12 +310,20 @@ include __DIR__ . '/includes/header.php';
         <?php endwhile; ?>
       </tbody>
     </table>
+    </div>
   <?php else: ?>
     <p class="empty-state">No products yet. Click "Add New Product" to create one.</p>
   <?php endif; ?>
 </div>
 
 <script>
+function setCheckboxes(groupId, csv) {
+  var vals = csv ? csv.split(',').map(function(v){ return v.trim(); }) : [];
+  document.querySelectorAll('#' + groupId + ' input[type="checkbox"]').forEach(function(cb) {
+    cb.checked = vals.indexOf(cb.value) !== -1;
+  });
+}
+
 // Open form for adding a new product
 function openAddForm() {
   document.getElementById('formPanelTitle').textContent = 'Add New Product';
@@ -265,6 +338,8 @@ function openAddForm() {
   document.getElementById('fSubmitBtn').textContent = 'Add Product';
   document.getElementById('imgPreview').style.display = 'none';
   document.getElementById('fImage').value = '';
+  setCheckboxes('fSizesGroup', '');
+  setCheckboxes('fColorsGroup', '');
 
   var panel = document.getElementById('productFormPanel');
   panel.style.display = 'block';
@@ -285,6 +360,8 @@ document.querySelectorAll('.edit-btn').forEach(function (btn) {
     document.getElementById('fCategory').value                 = btn.dataset.category;
     document.getElementById('fSubmitBtn').textContent          = 'Save Changes';
     document.getElementById('fImage').value                    = '';
+    setCheckboxes('fSizesGroup',  btn.dataset.sizes  || '');
+    setCheckboxes('fColorsGroup', btn.dataset.colors || '');
 
     var preview = document.getElementById('imgPreview');
     if (btn.dataset.image) {
@@ -317,9 +394,16 @@ function previewImg(input) {
   }
 }
 
-// If there was a form error, keep the form open
+// If there was a form error, keep the form open with correct state
 <?php if (!empty($message) && $messageType === 'danger'): ?>
 document.getElementById('productFormPanel').style.display = 'block';
+document.getElementById('formPanelTitle').textContent = '<?= $fAction === 'edit_product' ? 'Edit Product' : 'Add New Product' ?>';
+document.getElementById('fSubmitBtn').textContent     = '<?= $fAction === 'edit_product' ? 'Save Changes' : 'Add Product' ?>';
+<?php if ($fCurrentImage): ?>
+var ep = document.getElementById('imgPreview');
+ep.src = '/alke/assets/<?= htmlspecialchars($fCurrentImage) ?>';
+ep.style.display = 'block';
+<?php endif; ?>
 <?php endif; ?>
 </script>
 

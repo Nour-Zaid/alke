@@ -8,7 +8,7 @@ if (!isset($_SESSION['cart'])) {
 
 
 include '../includes/header.php';
-$result = $conn->query("SELECT * FROM products ORDER BY id DESC LIMIT 8");
+$result = $conn->query("SELECT * FROM products ORDER BY id DESC");
 ?>
 
 <main class="products-page">

@@ -305,6 +305,29 @@ textarea.form-control { resize: vertical; }
 .login-btn:hover { opacity: .8; }
 .login-hint { margin-top: 14px; font-size: 0.78rem; color: #aaa; text-align: center; }
 
+/* ── Checkbox groups (sizes / colors) ────────────────── */
+.checkbox-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding-top: 4px;
+}
+.check-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 12px;
+  border: 1.5px solid #e0e0e0;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  cursor: pointer;
+  user-select: none;
+  transition: border-color .15s, background .15s;
+}
+.check-label:hover { border-color: #aaa; }
+.check-label input[type="checkbox"] { accent-color: #0e0e0e; width: 13px; height: 13px; cursor: pointer; }
+.check-label:has(input:checked) { border-color: #0e0e0e; background: #f0f0f0; font-weight: 600; }
+
 /* ── Inline status form ───────────────────────────────── */
 .status-form { display: flex; align-items: center; gap: 6px; }
 .status-form select { padding: 5px 8px; font-size: 0.8rem; }

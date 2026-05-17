@@ -24,17 +24,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_to_cart'])) {
 
 include '../includes/header.php';
 
-$product = null;
+$product   = null;
+$sizesArr  = [];
+$colorsArr = [];
 $productId = isset($_GET['id']) ? (int) $_GET['id'] : 0;
 
 if ($productId > 0) {
-    $stmt = $conn->prepare("SELECT * FROM products WHERE id = ? LIMIT 1");
+    $stmt = $conn->prepare("
+        SELECT p.*, c.name AS category_name
+        FROM products p
+        LEFT JOIN categories c ON p.category_id = c.id
+        WHERE p.id = ? LIMIT 1
+    ");
     $stmt->bind_param("i", $productId);
     $stmt->execute();
     $result = $stmt->get_result();
 
     if ($result && $result->num_rows > 0) {
-        $product = $result->fetch_assoc();
+        $product   = $result->fetch_assoc();
+        $sizesArr  = !empty($product['sizes'])  ? array_filter(array_map('trim', explode(',', $product['sizes'])))  : [];
+        $colorsArr = !empty($product['colors']) ? array_filter(array_map('trim', explode(',', $product['colors']))) : [];
     }
 
     $stmt->close();
@@ -67,35 +76,44 @@ if ($productId > 0) {
             <p class="product-details-price">$<?php echo number_format((float)$product['price'], 2); ?></p>
 
             <p class="product-details-description">
-              Premium fashion essential crafted for everyday comfort and timeless style.
-              This is a placeholder product description that can be replaced with real product details later.
+              <?= !empty($product['description']) ? nl2br(htmlspecialchars($product['description'])) : 'Premium fashion essential crafted for everyday comfort and timeless style.' ?>
             </p>
 
             <div class="product-details-meta">
-              <p><strong>Product ID:</strong> <?php echo (int)$product['id']; ?></p>
-              <p><strong>Availability:</strong> In Stock</p>
+              <?php if (!empty($product['category_name'])): ?>
+              <p><strong>Category:</strong> <?= htmlspecialchars($product['category_name']) ?></p>
+              <?php endif; ?>
+              <p><strong>Availability:</strong>
+                <?php if ((int)$product['stock'] > 0): ?>
+                  <span style="color:#16a34a; font-weight:600;">In Stock</span>
+                <?php else: ?>
+                  <span style="color:#dc3545; font-weight:600;">Out of Stock</span>
+                <?php endif; ?>
+              </p>
             </div>
 
             <div class="product-options">
+              <?php if (!empty($colorsArr)): ?>
               <div class="option-group">
                 <label for="productColor">Color</label>
-                <select id="productColor" name="productColor">
-                  <option value="black">Black</option>
-                  <option value="white">White</option>
-                  <option value="gray">Gray</option>
-                  <option value="beige">Beige</option>
+                <select id="productColor" name="color">
+                  <?php foreach ($colorsArr as $cl): ?>
+                    <option value="<?= htmlspecialchars($cl) ?>"><?= htmlspecialchars($cl) ?></option>
+                  <?php endforeach; ?>
                 </select>
               </div>
+              <?php endif; ?>
 
+              <?php if (!empty($sizesArr)): ?>
               <div class="option-group">
                 <label for="productSize">Size</label>
-                <select id="productSize" name="productSize">
-                  <option value="s">Small (S)</option>
-                  <option value="m" selected>Medium (M)</option>
-                  <option value="l">Large (L)</option>
-                  <option value="xl">Extra Large (XL)</option>
+                <select id="productSize" name="size">
+                  <?php foreach ($sizesArr as $sz): ?>
+                    <option value="<?= htmlspecialchars($sz) ?>"><?= htmlspecialchars($sz) ?></option>
+                  <?php endforeach; ?>
                 </select>
               </div>
+              <?php endif; ?>
 
               <div class="option-group">
                 <label for="productQty">Quantity</label>
