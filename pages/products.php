@@ -123,6 +123,9 @@ document.addEventListener('DOMContentLoaded', function () {
       .then(data => {
         if (data && data.success) {
           updateCartBadge(data.cart_count);
+          if (window.refreshMiniCart && data.mini_cart) {
+            window.refreshMiniCart(data.mini_cart);
+          }
           showToast('✓ Product added to cart!', false);
         } else {
           showToast('Could not add item to cart.', true);

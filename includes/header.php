@@ -73,8 +73,6 @@ if (!empty($_SESSION['cart'])) {
       <nav class="site-nav" id="siteNav">
         <a href="/alke/index.php">Home</a>
         <a href="/alke/pages/products.php">Shop</a>
-        <a href="#">Men</a>
-        <a href="#">Women</a>
         <a href="#">Contact</a>
 
         <?php if (!isset($_SESSION['user_id'])): ?>
@@ -136,3 +134,40 @@ if (!empty($_SESSION['cart'])) {
   </aside>
   <div class="cart-drawer-overlay" id="cartDrawerOverlay"></div>
   <?php endif; ?>
+
+<script>
+function _esc(s) {
+  var d = document.createElement('div');
+  d.appendChild(document.createTextNode(String(s)));
+  return d.innerHTML;
+}
+
+window.refreshMiniCart = function (miniCart) {
+  var body  = document.querySelector('.cart-drawer-body');
+  var total = document.querySelector('.mini-cart-total');
+  if (!body) return;
+
+  if (!miniCart || !miniCart.items || miniCart.items.length === 0) {
+    body.innerHTML = '<p class="mini-cart-empty">Your cart is empty.</p>';
+    if (total) total.textContent = 'Total: $0.00';
+    return;
+  }
+
+  var html = '';
+  miniCart.items.forEach(function (item) {
+    html += '<div class="mini-cart-item">'
+      + '<a href="/alke/pages/product.php?id=' + item.id + '" class="mini-cart-thumb-link">'
+      + '<img src="' + _esc(item.image) + '" alt="' + _esc(item.name) + '" class="mini-cart-thumb">'
+      + '</a>'
+      + '<div class="mini-cart-info">'
+      + '<a href="/alke/pages/product.php?id=' + item.id + '" class="mini-cart-name-link">'
+      + '<p class="mini-cart-name">' + _esc(item.name) + '</p>'
+      + '</a>'
+      + '<p class="mini-cart-meta">Qty: ' + item.qty + ' &bull; $' + item.line_total.toFixed(2) + '</p>'
+      + '</div></div>';
+  });
+
+  body.innerHTML = html;
+  if (total) total.textContent = 'Total: $' + miniCart.total.toFixed(2);
+};
+</script>

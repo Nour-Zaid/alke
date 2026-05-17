@@ -194,6 +194,9 @@ document.addEventListener('DOMContentLoaded', function () {
             }
 
             updateBadge(data.cart_count);
+            if (window.refreshMiniCart && data.mini_cart) {
+              window.refreshMiniCart(data.mini_cart);
+            }
 
             if (newQty <= 0) {
               row.remove();
@@ -225,6 +228,9 @@ document.addEventListener('DOMContentLoaded', function () {
 
             row.remove();
             updateBadge(data.cart_count);
+            if (window.refreshMiniCart && data.mini_cart) {
+              window.refreshMiniCart(data.mini_cart);
+            }
 
             if (!tableBody.querySelector('.cart-row')) {
               window.location.reload();

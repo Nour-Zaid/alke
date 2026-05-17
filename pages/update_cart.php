@@ -1,5 +1,6 @@
 <?php
 session_start();
+include '../config/db.php';
 
 header('Content-Type: application/json');
 
@@ -64,7 +65,44 @@ switch ($action) {
 
 $cartCount = array_sum($_SESSION['cart']);
 
+$miniCartItems = [];
+$miniCartTotal = 0.0;
+
+if (!empty($_SESSION['cart'])) {
+    $ids = array_map('intval', array_keys($_SESSION['cart']));
+    $idsList = implode(',', $ids);
+    $miniResult = $conn->query("SELECT id, name, price, image FROM products WHERE id IN ($idsList)");
+    if ($miniResult) {
+        while ($row = $miniResult->fetch_assoc()) {
+            $pid = (int)$row['id'];
+            $qty = isset($_SESSION['cart'][$pid]) ? (int)$_SESSION['cart'][$pid] : 0;
+            if ($qty < 1) continue;
+
+            $dbImage = trim($row['image'] ?? '');
+            $imagePath = '/alke/testblackshirt.jpeg';
+            if (!empty($dbImage) && file_exists(__DIR__ . '/../assets/' . $dbImage)) {
+                $imagePath = '/alke/assets/' . $dbImage;
+            }
+
+            $lineTotal = (float)$row['price'] * $qty;
+            $miniCartTotal += $lineTotal;
+            $miniCartItems[] = [
+                'id'         => $pid,
+                'name'       => $row['name'],
+                'price'      => (float)$row['price'],
+                'qty'        => $qty,
+                'image'      => $imagePath,
+                'line_total' => $lineTotal,
+            ];
+        }
+    }
+}
+
 echo json_encode([
-    'success' => true,
-    'cart_count' => $cartCount
+    'success'   => true,
+    'cart_count' => $cartCount,
+    'mini_cart' => [
+        'items' => $miniCartItems,
+        'total' => $miniCartTotal,
+    ],
 ]);
