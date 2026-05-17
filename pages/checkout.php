@@ -66,7 +66,8 @@ function preparePaymentPayload($orderId, $amount, $customerName, $customerEmail)
     ];
 }
 
-if ($_SERVER["REQUEST_METHOD"] == "POST") {
+// Step 1: Validate form fields and store in session for review
+if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['place_order'])) {
     $name = isset($_POST['name']) ? trim($_POST['name']) : '';
     $email = isset($_POST['email']) ? trim($_POST['email']) : '';
     $phone = isset($_POST['phone']) ? trim($_POST['phone']) : '';
@@ -82,10 +83,20 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     } elseif ($name === '' || $email === '' || $phone === '' || $address === '' || $city === '' || $country === '' || $postalCode === '') {
         $errorMessage = 'Please fill all checkout details.';
     } else {
+        $_SESSION['pending_order'] = compact('name', 'email', 'phone', 'address', 'city', 'country', 'postalCode');
+        $orderPlaced = true;
+    }
+}
+
+// Step 2: User confirmed — insert order into DB and redirect to success
+if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['confirm_order'])) {
+    if (empty($cartItems) || empty($_SESSION['pending_order'])) {
+        $errorMessage = 'Session expired. Please fill checkout details again.';
+    } else {
         $status = 'pending';
         $user_id = (int)$_SESSION['user_id'];
         $stmtOrder = $conn->prepare("INSERT INTO orders (user_id, total_price, status) VALUES (?, ?, ?)");
-        
+
         if (!$stmtOrder) {
             $errorMessage = 'Order prepare failed: ' . $conn->error;
         } else {
@@ -116,6 +127,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
                     if ($itemsSaved) {
                         $_SESSION['cart'] = [];
+                        unset($_SESSION['pending_order']);
                         header("Location: order_success.php?id=" . $order_id);
                         exit();
                     }
@@ -141,11 +153,35 @@ include '../includes/header.php';
       </div>
 
       <?php if ($orderPlaced): ?>
-        <div class="checkout-success">
-          <div class="checkout-success-icon">✓</div>
-          <h3>Order placed successfully</h3>
-          <p>Thank you for shopping with Alke Clothes.</p>
-          <a href="/alke/pages/products.php" class="btn">Continue Shopping</a>
+        <div class="checkout-card" style="max-width: 800px; margin: 0 auto;">
+          <h3 class="checkout-card-title">Review Your Order</h3>
+          <p class="checkout-card-subtitle">Please confirm your order details before placing it.</p>
+
+          <div class="checkout-summary-list" style="margin-top: 20px;">
+            <?php foreach ($cartItems as $item): ?>
+              <div class="checkout-summary-item">
+                <div class="checkout-item-left">
+                  <img src="<?php echo htmlspecialchars($item['image_path']); ?>" alt="<?php echo htmlspecialchars($item['name']); ?>" class="checkout-item-thumb">
+                  <div>
+                    <p class="checkout-item-name"><?php echo htmlspecialchars($item['name']); ?></p>
+                    <p class="checkout-item-meta">Qty: <?php echo (int)$item['quantity']; ?> × $<?php echo number_format((float)$item['price'], 2); ?></p>
+                  </div>
+                </div>
+                <p class="checkout-item-subtotal">$<?php echo number_format((float)$item['subtotal'], 2); ?></p>
+              </div>
+            <?php endforeach; ?>
+          </div>
+
+          <div class="checkout-total">
+            <span>Total</span>
+            <strong>$<?php echo number_format((float)$totalPrice, 2); ?></strong>
+          </div>
+
+          <form method="POST" action="/alke/pages/checkout.php" class="checkout-actions" style="margin-top: 20px;">
+            <input type="hidden" name="confirm_order" value="1">
+            <button type="submit" class="btn">Confirm Order</button>
+            <a href="/alke/pages/checkout.php" class="btn checkout-secondary-btn">Edit Order</a>
+          </form>
         </div>
       <?php else: ?>
         <?php if (!empty($errorMessage)): ?>
