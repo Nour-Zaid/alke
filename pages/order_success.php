@@ -55,7 +55,7 @@ if ($orderId <= 0) {
   <section class="section products-section">
     <div class="container">
       <div class="section-title">
-        <h2>Order Confirmation</h2>
+        <h2>Order Confirmed</h2>
         <p>Thank you for your order</p>
       </div>
 
