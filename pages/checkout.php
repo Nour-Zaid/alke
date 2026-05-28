@@ -3,6 +3,7 @@ session_start();
 include '../config/db.php';
 
 if (!isset($_SESSION['user_id'])) {
+    $_SESSION['redirect_after_login'] = '/alke/pages/checkout.php';
     header("Location: /alke/pages/login.php");
     exit();
 }

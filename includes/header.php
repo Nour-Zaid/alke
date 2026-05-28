@@ -83,7 +83,6 @@ if (!empty($_SESSION['cart'])) {
         <?php endif; ?>
       </nav>
 
-      <?php if (isset($_SESSION['user_id'])): ?>
       <div class="nav-user-actions">
         <button type="button" id="cartDrawerToggle" class="cart-icon cart-toggle-btn" aria-label="Open cart panel">
           <span class="cart-emoji">🛒</span>
@@ -92,15 +91,15 @@ if (!empty($_SESSION['cart'])) {
           <?php endif; ?>
         </button>
 
+        <?php if (isset($_SESSION['user_id'])): ?>
         <a href="/alke/pages/profile.php" class="profile-link" aria-label="Open profile">
           <span>Profile</span>
         </a>
+        <?php endif; ?>
       </div>
-      <?php endif; ?>
     </div>
   </header>
 
-  <?php if (isset($_SESSION['user_id'])): ?>
   <aside class="cart-drawer" id="cartDrawer" aria-hidden="true">
     <div class="cart-drawer-header">
       <h3>Your Cart</h3>
@@ -133,7 +132,6 @@ if (!empty($_SESSION['cart'])) {
     </div>
   </aside>
   <div class="cart-drawer-overlay" id="cartDrawerOverlay"></div>
-  <?php endif; ?>
 
 <script>
 function _esc(s) {

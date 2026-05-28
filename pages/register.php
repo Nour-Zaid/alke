@@ -39,7 +39,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         } else {
             $stmt->bind_param("ssss", $name, $email, $hashedPassword, $phone);
 
-            if ($stmt->execute()) {
+            try {
+                $stmt->execute();
                 $newUserId = (int)$conn->insert_id;
 
                 if ($verificationReady) {
@@ -72,8 +73,12 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                     header("Location: /alke/index.php");
                     exit();
                 }
-            } else {
-                $errorMessage = 'Sign Up failed: ' . $stmt->error;
+            } catch (mysqli_sql_exception $e) {
+                if ($e->getCode() === 1062) {
+                    $errorMessage = 'An account with this email already exists.';
+                } else {
+                    $errorMessage = 'Sign Up failed. Please try again.';
+                }
             }
 
             $stmt->close();

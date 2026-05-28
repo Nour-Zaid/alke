@@ -66,7 +66,13 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                             $_SESSION['user_email'] = (string)($user['email'] ?? '');
                             $_SESSION['user_phone'] = (string)($user['phone'] ?? '');
 
-                            header("Location: /alke/index.php");
+                            $redirect = '/alke/index.php';
+                            if (!empty($_SESSION['redirect_after_login'])) {
+                                $redirect = $_SESSION['redirect_after_login'];
+                                unset($_SESSION['redirect_after_login']);
+                            }
+
+                            header("Location: $redirect");
                             exit();
                         }
                     } else {
