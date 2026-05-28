@@ -19,9 +19,16 @@ if ($columnCheck && $columnCheck->num_rows > 0) {
     $phoneColumnExists = true;
 }
 
-$userSql = $phoneColumnExists
-    ? "SELECT name, email, phone FROM users WHERE id = ?"
-    : "SELECT name, email FROM users WHERE id = ?";
+$verifiedColExists = false;
+$verifiedColCheck = $conn->query("SHOW COLUMNS FROM users LIKE 'email_verified'");
+if ($verifiedColCheck && $verifiedColCheck->num_rows > 0) {
+    $verifiedColExists = true;
+}
+
+$selectFields = "name, email"
+    . ($phoneColumnExists ? ", phone" : "")
+    . ($verifiedColExists ? ", email_verified" : "");
+$userSql = "SELECT $selectFields FROM users WHERE id = ?";
 
 $stmtUser = $conn->prepare($userSql);
 if (!$stmtUser) {
@@ -170,6 +177,19 @@ if (is_array($user)) {
             <p class="profile-label">Phone</p>
             <p class="profile-value" id="profile-phone-value"><?php echo htmlspecialchars($displayPhone); ?></p>
           </div>
+
+          <?php if ($verifiedColExists): ?>
+          <div class="profile-field-row">
+            <p class="profile-label">Email Verified</p>
+            <p class="profile-value">
+              <?php if (isset($user['email_verified']) && (int)$user['email_verified'] === 1): ?>
+                Yes
+              <?php else: ?>
+                No &mdash; <a href="/alke/pages/resend_verification.php">Resend verification email</a>
+              <?php endif; ?>
+            </p>
+          </div>
+          <?php endif; ?>
         </div>
 
         <div class="profile-section profile-clean-card">

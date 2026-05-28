@@ -92,15 +92,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($action === 'delete_product') {
         $product_id = (int)($_POST['product_id'] ?? 0);
 
-        // Check for existing order references
-        $chk = $conn->prepare("SELECT COUNT(*) FROM order_items WHERE product_id = ?");
+        // Block deletion only if the product is in an active (non-closed) order
+        $chk = $conn->prepare("
+            SELECT COUNT(*) FROM order_items oi
+            JOIN orders o ON oi.order_id = o.id
+            WHERE oi.product_id = ? AND o.status IN ('pending','processing','shipped')
+        ");
         $chk->bind_param('i', $product_id);
         $chk->execute();
         $usedIn = (int)$chk->get_result()->fetch_row()[0];
         $chk->close();
 
         if ($usedIn > 0) {
-            $message     = "Cannot delete: this product appears in $usedIn order(s). Update the product instead.";
+            $message     = "Cannot delete: this product is in $usedIn active order(s). Wait until those orders are delivered or cancelled.";
             $messageType = 'danger';
         } else {
             $stmt = $conn->prepare("DELETE FROM products WHERE id = ?");

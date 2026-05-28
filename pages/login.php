@@ -8,6 +8,7 @@ if (isset($_SESSION['user_id'])) {
 }
 
 $errorMessage = '';
+$errorHtml = '';
 
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $loginValue = isset($_POST['login']) ? trim($_POST['login']) : '';
@@ -25,9 +26,18 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 $phoneColumnExists = true;
             }
 
-            $loginSql = $phoneColumnExists
-                ? "SELECT id, name, email, phone, password FROM users WHERE email = ?"
-                : "SELECT id, name, email, password FROM users WHERE email = ?";
+            $verifiedColExists = false;
+            $verifiedColCheck = $conn->query("SHOW COLUMNS FROM users LIKE 'email_verified'");
+            if ($verifiedColCheck && $verifiedColCheck->num_rows > 0) {
+                $verifiedColExists = true;
+            }
+
+            $selectFields = "id, name, email"
+                . ($phoneColumnExists ? ", phone" : "")
+                . ($verifiedColExists ? ", email_verified" : "")
+                . ", password";
+
+            $loginSql = "SELECT $selectFields FROM users WHERE email = ?";
 
             $stmt = $conn->prepare($loginSql);
             if (!$stmt) {
@@ -41,13 +51,17 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                     $user = $result->fetch_assoc();
 
                     if (password_verify($password, $user['password'])) {
-                        $_SESSION['user_id'] = (int)$user['id'];
-                        $_SESSION['user_name'] = isset($user['name']) ? (string)$user['name'] : '';
-                        $_SESSION['user_email'] = isset($user['email']) ? (string)$user['email'] : '';
-                        $_SESSION['user_phone'] = isset($user['phone']) ? (string)$user['phone'] : '';
+                        if ($verifiedColExists && isset($user['email_verified']) && (int)$user['email_verified'] === 0) {
+                            $errorHtml = 'Please verify your email before logging in. <a href="/alke/pages/resend_verification.php">Resend verification email</a>';
+                        } else {
+                            $_SESSION['user_id'] = (int)$user['id'];
+                            $_SESSION['user_name'] = isset($user['name']) ? (string)$user['name'] : '';
+                            $_SESSION['user_email'] = isset($user['email']) ? (string)$user['email'] : '';
+                            $_SESSION['user_phone'] = isset($user['phone']) ? (string)$user['phone'] : '';
 
-                        header("Location: /alke/index.php");
-                        exit();
+                            header("Location: /alke/index.php");
+                            exit();
+                        }
                     } else {
                         $errorMessage = 'Invalid login details.';
                     }
@@ -75,6 +89,12 @@ include '../includes/header.php';
       <?php if (!empty($errorMessage)): ?>
         <div class="checkout-alert">
           <p><?php echo htmlspecialchars($errorMessage); ?></p>
+        </div>
+      <?php endif; ?>
+
+      <?php if (!empty($errorHtml)): ?>
+        <div class="checkout-alert">
+          <p><?php echo $errorHtml; ?></p>
         </div>
       <?php endif; ?>
 
