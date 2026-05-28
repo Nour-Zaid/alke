@@ -17,6 +17,9 @@ $phoneColumnExists = false;
 $columnCheck = $conn->query("SHOW COLUMNS FROM users LIKE 'phone'");
 if ($columnCheck && $columnCheck->num_rows > 0) {
     $phoneColumnExists = true;
+} else {
+    $conn->query("ALTER TABLE users ADD COLUMN phone VARCHAR(20) DEFAULT NULL");
+    $phoneColumnExists = true;
 }
 
 $verifiedColExists = false;
@@ -32,7 +35,7 @@ $userSql = "SELECT $selectFields FROM users WHERE id = ?";
 
 $stmtUser = $conn->prepare($userSql);
 if (!$stmtUser) {
-    $userError = 'Profile load failed: ' . $conn->error;
+    $userError = "Profile load failed: {$conn->error}";
 } else {
     $stmtUser->bind_param("i", $userId);
     $stmtUser->execute();
@@ -42,9 +45,6 @@ if (!$stmtUser) {
         $row = $userResult->fetch_assoc();
         if (is_array($row)) {
             $user = $row;
-            if (!$phoneColumnExists) {
-                $user['phone'] = '';
-            }
             if (!isset($user['email']) || trim((string)$user['email']) === '') {
                 $user['email'] = isset($_SESSION['user_email']) ? (string)$_SESSION['user_email'] : '';
             }

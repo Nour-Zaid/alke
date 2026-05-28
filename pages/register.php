@@ -22,10 +22,9 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     } else {
         $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
 
-        $phoneColumnExists = false;
-        $columnCheck = $conn->query("SHOW COLUMNS FROM users LIKE 'phone'");
-        if ($columnCheck && $columnCheck->num_rows > 0) {
-            $phoneColumnExists = true;
+        $colCheck = $conn->query("SHOW COLUMNS FROM users LIKE 'phone'");
+        if (!$colCheck || $colCheck->num_rows === 0) {
+            $conn->query("ALTER TABLE users ADD COLUMN phone VARCHAR(20) DEFAULT NULL");
         }
 
         $verificationReady = false;
@@ -34,98 +33,50 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             $verificationReady = true;
         }
 
-        if ($phoneColumnExists) {
-            $stmt = $conn->prepare("INSERT INTO users (name, email, password, phone) VALUES (?, ?, ?, ?)");
-            if (!$stmt) {
-                $errorMessage = 'Sign Up prepare failed: ' . $conn->error;
-            } else {
-                $stmt->bind_param("ssss", $name, $email, $hashedPassword, $phone);
-
-                if ($stmt->execute()) {
-                    $newUserId = (int)$conn->insert_id;
-
-                    if ($verificationReady) {
-                        $token = bin2hex(random_bytes(32));
-                        $stmtToken = $conn->prepare("UPDATE users SET verification_token = ? WHERE id = ?");
-                        if ($stmtToken) {
-                            $stmtToken->bind_param("si", $token, $newUserId);
-                            $stmtToken->execute();
-                            $stmtToken->close();
-                        }
-
-                        $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
-                        $verifyLink = $protocol . '://' . $_SERVER['HTTP_HOST'] . '/alke/pages/verify_email.php?token=' . urlencode($token);
-                        $subject = 'Verify your email - Alke';
-                        $body = "Hello " . $name . ",\n\nPlease click the link below to verify your email address:\n\n" . $verifyLink . "\n\nIf you did not create this account, you can ignore this email.";
-                        $headers = 'From: noreply@' . $_SERVER['HTTP_HOST'];
-                        $mailSent = @mail($email, $subject, $body, $headers);
-
-                        if (!$mailSent || in_array($_SERVER['REMOTE_ADDR'] ?? '', ['127.0.0.1', '::1'])) {
-                            $devVerifyLink = $verifyLink;
-                        }
-
-                        $successMessage = 'Account created! Please check your email and click the verification link before logging in.';
-                    } else {
-                        $_SESSION['user_id'] = $newUserId;
-                        $_SESSION['user_name'] = $name;
-                        $_SESSION['user_email'] = $email;
-                        $_SESSION['user_phone'] = $phone;
-
-                        header("Location: /alke/index.php");
-                        exit();
-                    }
-                } else {
-                    $errorMessage = 'Sign Up failed: ' . $stmt->error;
-                }
-
-                $stmt->close();
-            }
+        $stmt = $conn->prepare("INSERT INTO users (name, email, password, phone) VALUES (?, ?, ?, ?)");
+        if (!$stmt) {
+            $errorMessage = 'Sign Up prepare failed: ' . $conn->error;
         } else {
-            $stmt = $conn->prepare("INSERT INTO users (name, email, password) VALUES (?, ?, ?)");
-            if (!$stmt) {
-                $errorMessage = 'Sign Up prepare failed: ' . $conn->error;
-            } else {
-                $stmt->bind_param("sss", $name, $email, $hashedPassword);
+            $stmt->bind_param("ssss", $name, $email, $hashedPassword, $phone);
 
-                if ($stmt->execute()) {
-                    $newUserId = (int)$conn->insert_id;
+            if ($stmt->execute()) {
+                $newUserId = (int)$conn->insert_id;
 
-                    if ($verificationReady) {
-                        $token = bin2hex(random_bytes(32));
-                        $stmtToken = $conn->prepare("UPDATE users SET verification_token = ? WHERE id = ?");
-                        if ($stmtToken) {
-                            $stmtToken->bind_param("si", $token, $newUserId);
-                            $stmtToken->execute();
-                            $stmtToken->close();
-                        }
-
-                        $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
-                        $verifyLink = $protocol . '://' . $_SERVER['HTTP_HOST'] . '/alke/pages/verify_email.php?token=' . urlencode($token);
-                        $subject = 'Verify your email - Alke';
-                        $body = "Hello " . $name . ",\n\nPlease click the link below to verify your email address:\n\n" . $verifyLink . "\n\nIf you did not create this account, you can ignore this email.";
-                        $headers = 'From: noreply@' . $_SERVER['HTTP_HOST'];
-                        $mailSent = @mail($email, $subject, $body, $headers);
-
-                        if (!$mailSent || in_array($_SERVER['REMOTE_ADDR'] ?? '', ['127.0.0.1', '::1'])) {
-                            $devVerifyLink = $verifyLink;
-                        }
-
-                        $successMessage = 'Account created! Please check your email and click the verification link before logging in.';
-                    } else {
-                        $_SESSION['user_id'] = $newUserId;
-                        $_SESSION['user_name'] = $name;
-                        $_SESSION['user_email'] = $email;
-                        $_SESSION['user_phone'] = $phone;
-
-                        header("Location: /alke/index.php");
-                        exit();
+                if ($verificationReady) {
+                    $token = bin2hex(random_bytes(32));
+                    $stmtToken = $conn->prepare("UPDATE users SET verification_token = ? WHERE id = ?");
+                    if ($stmtToken) {
+                        $stmtToken->bind_param("si", $token, $newUserId);
+                        $stmtToken->execute();
+                        $stmtToken->close();
                     }
-                } else {
-                    $errorMessage = 'Sign Up failed: ' . $stmt->error;
-                }
 
-                $stmt->close();
+                    $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+                    $verifyLink = $protocol . '://' . $_SERVER['HTTP_HOST'] . '/alke/pages/verify_email.php?token=' . urlencode($token);
+                    $subject = 'Verify your email - Alke';
+                    $body = "Hello " . $name . ",\n\nPlease click the link below to verify your email address:\n\n" . $verifyLink . "\n\nIf you did not create this account, you can ignore this email.";
+                    $headers = 'From: noreply@' . $_SERVER['HTTP_HOST'];
+                    $mailSent = @mail($email, $subject, $body, $headers);
+
+                    if (!$mailSent || in_array($_SERVER['REMOTE_ADDR'] ?? '', ['127.0.0.1', '::1'])) {
+                        $devVerifyLink = $verifyLink;
+                    }
+
+                    $successMessage = 'Account created! Please check your email and click the verification link before logging in.';
+                } else {
+                    $_SESSION['user_id'] = $newUserId;
+                    $_SESSION['user_name'] = $name;
+                    $_SESSION['user_email'] = $email;
+                    $_SESSION['user_phone'] = $phone;
+
+                    header("Location: /alke/index.php");
+                    exit();
+                }
+            } else {
+                $errorMessage = 'Sign Up failed: ' . $stmt->error;
             }
+
+            $stmt->close();
         }
     }
 }
