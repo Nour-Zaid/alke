@@ -27,13 +27,7 @@ if (!empty($_SESSION['cart'])) {
                 $price = (float)$row['price'];
                 $subtotal = $price * $quantity;
 
-                $dbImage = isset($row['image']) ? trim($row['image']) : '';
-                $imagePath = '/alke/testblackshirt.jpeg';
-                if (!empty($dbImage) && file_exists(__DIR__ . '/../assets/' . $dbImage)) {
-                    $imagePath = '/alke/assets/' . $dbImage;
-                }
-
-                $row['image_path'] = $imagePath;
+                $row['image_path'] = alke_product_image($row);
                 $row['quantity'] = $quantity;
                 $row['subtotal'] = $subtotal;
 
@@ -126,6 +120,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const data = new FormData();
     data.append('action', action);
     data.append('product_id', productId || 0);
+    data.append('csrf_token', document.querySelector('meta[name="csrf-token"]')?.content || '');
     if (typeof quantity !== 'undefined') {
       data.append('quantity', quantity);
     }
@@ -189,7 +184,11 @@ document.addEventListener('DOMContentLoaded', function () {
         postCart('update', productId, newQty)
           .then(function (data) {
             if (!data || !data.success) {
-              alert('Could not update quantity.');
+              if (data && data.message && data.message.indexOf('adjusted') !== -1) {
+                window.location.reload();
+                return;
+              }
+              alert((data && data.message) || 'Could not update quantity.');
               return;
             }
 
@@ -248,16 +247,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
   if (clearCartBtn) {
     clearCartBtn.addEventListener('click', function () {
-      const rows = document.querySelectorAll('.cart-row');
-      if (!rows.length) return;
-
-      const requests = [];
-      rows.forEach(function (row) {
-        const pid = row.getAttribute('data-product-id');
-        requests.push(postCart('remove', pid));
-      });
-
-      Promise.all(requests)
+      postCart('clear', 1)
         .then(function () {
           window.location.reload();
         })

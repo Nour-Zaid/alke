@@ -10,9 +10,9 @@
         <ul>
           <li><a href="/alke/index.php">Home</a></li>
           <li><a href="/alke/pages/products.php">Shop</a></li>
-          <li><a href="#">Men</a></li>
-          <li><a href="#">Women</a></li>
-          <li><a href="#">Contact</a></li>
+          <li><a href="/alke/pages/products.php?category=1">Men</a></li>
+          <li><a href="/alke/pages/products.php?category=2">Women</a></li>
+          <li><a href="/alke/pages/contact.php">Contact</a></li>
         </ul>
       </div>
 

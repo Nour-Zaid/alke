@@ -1,6 +1,7 @@
 <?php
 session_start();
 include '../config/db.php';
+include '../includes/helpers.php';
 
 if (isset($_SESSION['user_id'])) {
     header("Location: /alke/index.php");
@@ -17,8 +18,16 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $phone = isset($_POST['phone']) ? trim($_POST['phone']) : '';
     $password = isset($_POST['password']) ? $_POST['password'] : '';
 
-    if ($name === '' || $email === '' || $phone === '' || $password === '') {
+    if (!alke_csrf_check()) {
+        $errorMessage = 'Your session expired. Please try again.';
+    } elseif (!alke_rate_limit('register', 5, 600)) {
+        $errorMessage = 'Too many attempts. Please wait a few minutes and try again.';
+    } elseif ($name === '' || $email === '' || $phone === '' || $password === '') {
         $errorMessage = 'Please fill in all fields.';
+    } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        $errorMessage = 'Please enter a valid email address.';
+    } elseif (strlen($password) < 8) {
+        $errorMessage = 'Password must be at least 8 characters long.';
     } else {
         $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
 
@@ -117,6 +126,7 @@ include '../includes/header.php';
 
         <div class="checkout-card">
           <form method="POST" action="/alke/pages/register.php" class="checkout-form">
+            <?php echo alke_csrf_field(); ?>
             <div class="checkout-field">
               <label for="regName">Name</label>
               <input type="text" id="regName" name="name" required>
@@ -134,7 +144,8 @@ include '../includes/header.php';
 
             <div class="checkout-field">
               <label for="regPassword">Password</label>
-              <input type="password" id="regPassword" name="password" required>
+              <input type="password" id="regPassword" name="password" minlength="8" required>
+              <small style="color:#7a7a7a;">At least 8 characters.</small>
             </div>
 
             <div class="checkout-actions">

@@ -3,6 +3,9 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 include __DIR__ . '/../config/db.php';
+include __DIR__ . '/helpers.php';
+
+alke_security_headers();
 
 $miniCartItems = [];
 $miniCartTotal = 0;
@@ -28,12 +31,7 @@ if (!empty($_SESSION['cart'])) {
                     $qty = 1;
                 }
 
-                $dbImage = isset($row['image']) ? trim($row['image']) : '';
-                $imagePath = '/alke/testblackshirt.jpeg';
-                if (!empty($dbImage) && file_exists(__DIR__ . '/../assets/' . $dbImage)) {
-                    $imagePath = '/alke/assets/' . $dbImage;
-                }
-
+                $imagePath = alke_product_image($row);
                 $lineTotal = ((float)$row['price']) * $qty;
                 $miniCartTotal += $lineTotal;
 
@@ -55,8 +53,9 @@ if (!empty($_SESSION['cart'])) {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="csrf-token" content="<?php echo alke_esc(alke_csrf_token()); ?>">
   <title>Alke Clothes</title>
-  <link rel="stylesheet" href="/alke/css/style.css?v=2.3">
+  <link rel="stylesheet" href="/alke/css/style.css?v=3.2">
 </head>
 <body>
   <header class="site-header">
@@ -73,7 +72,7 @@ if (!empty($_SESSION['cart'])) {
       <nav class="site-nav" id="siteNav">
         <a href="/alke/index.php">Home</a>
         <a href="/alke/pages/products.php">Shop</a>
-        <a href="#">Contact</a>
+        <a href="/alke/pages/contact.php">Contact</a>
 
         <?php if (!isset($_SESSION['user_id'])): ?>
           <a href="/alke/pages/login.php">Login</a>
@@ -82,6 +81,17 @@ if (!empty($_SESSION['cart'])) {
           <a href="/alke/pages/logout.php">Logout</a>
         <?php endif; ?>
       </nav>
+
+      <form class="nav-search" action="/alke/pages/products.php" method="GET" role="search">
+        <input
+          type="search"
+          name="q"
+          placeholder="Search products…"
+          aria-label="Search products"
+          value="<?php echo isset($_GET['q']) ? alke_esc($_GET['q']) : ''; ?>"
+        >
+        <button type="submit" aria-label="Search">🔍</button>
+      </form>
 
       <div class="nav-user-actions">
         <button type="button" id="cartDrawerToggle" class="cart-icon cart-toggle-btn" aria-label="Open cart panel">

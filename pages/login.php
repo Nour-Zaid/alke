@@ -1,6 +1,7 @@
 <?php
 session_start();
 include '../config/db.php';
+include '../includes/helpers.php';
 
 if (isset($_SESSION['user_id'])) {
     header("Location: /alke/index.php");
@@ -14,7 +15,11 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $loginValue = isset($_POST['login']) ? trim($_POST['login']) : '';
     $password = isset($_POST['password']) ? $_POST['password'] : '';
 
-    if ($loginValue === '' || $password === '') {
+    if (!alke_csrf_check()) {
+        $errorMessage = 'Your session expired. Please try again.';
+    } elseif (!alke_rate_limit('login', 5, 300)) {
+        $errorMessage = 'Too many login attempts. Please wait a few minutes and try again.';
+    } elseif ($loginValue === '' || $password === '') {
         $errorMessage = 'Please enter email/phone and password.';
     } else {
         if (preg_match('/^[0-9\-\+\s\(\)]+$/', $loginValue)) {
@@ -60,6 +65,10 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                             if ($verifiedColExists && (int)($user['email_verified'] ?? 1) === 0) {
                                 $conn->query("UPDATE users SET email_verified = 1 WHERE id = " . (int)$user['id']);
                             }
+
+                            // Prevent session fixation
+                            session_regenerate_id(true);
+                            alke_rate_limit_reset('login');
 
                             $_SESSION['user_id'] = (int)$user['id'];
                             $_SESSION['user_name'] = (string)($user['name'] ?? '');
@@ -113,6 +122,7 @@ include '../includes/header.php';
 
       <div class="checkout-card">
         <form method="POST" action="/alke/pages/login.php" class="checkout-form">
+          <?php echo alke_csrf_field(); ?>
           <div class="checkout-field">
             <label for="loginInput">Email or Phone</label>
             <input type="text" id="loginInput" name="login" required>

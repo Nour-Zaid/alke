@@ -9,11 +9,32 @@ if (isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in'] === true
 
 $error = '';
 
+function admin_rate_limit_ok(): bool
+{
+    $now = time();
+    if (!isset($_SESSION['admin_login_attempts']) || !is_array($_SESSION['admin_login_attempts'])) {
+        $_SESSION['admin_login_attempts'] = [];
+    }
+    $_SESSION['admin_login_attempts'] = array_values(array_filter(
+        $_SESSION['admin_login_attempts'],
+        fn($t) => ($now - (int)$t) < 300
+    ));
+    if (count($_SESSION['admin_login_attempts']) >= 5) {
+        return false;
+    }
+    $_SESSION['admin_login_attempts'][] = $now;
+    return true;
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $username = trim($_POST['username'] ?? '');
-    $password = trim($_POST['password'] ?? '');
+    $password = (string)($_POST['password'] ?? '');
 
-    if ($username === ADMIN_USER && $password === ADMIN_PASS) {
+    if (!admin_rate_limit_ok()) {
+        $error = 'Too many attempts. Please wait a few minutes.';
+    } elseif (hash_equals(ADMIN_USER, $username) && password_verify($password, ADMIN_PASS_HASH)) {
+        session_regenerate_id(true);
+        unset($_SESSION['admin_login_attempts']);
         $_SESSION['admin_logged_in'] = true;
         $_SESSION['admin_user'] = $username;
         header('Location: /alke/admin/index.php');
@@ -54,7 +75,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       <button type="submit" class="login-btn">Sign In</button>
     </form>
 
-    <p class="login-hint">Default: admin / admin123 — change in admin/config.php</p>
+    <p class="login-hint">Set ADMIN_USER / ADMIN_PASS_HASH env vars (or edit admin/config.php) before going live.</p>
   </div>
 </div>
 </body>
