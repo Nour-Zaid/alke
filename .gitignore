@@ -1,0 +1,6 @@
+# Ignore sensitive config overrides
+config/db.local.php
+
+# OS
+.DS_Store
+Thumbs.db
