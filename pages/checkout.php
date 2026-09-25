@@ -3,21 +3,21 @@ session_start();
 include '../config/db.php';
 include '../includes/helpers.php';
 
-/* Auto-migrate: add shipping columns to orders if missing */
+/* Auto-migrate: add shipping + payment columns to orders if missing */
 foreach (['ship_name' => 'VARCHAR(150)', 'ship_email' => 'VARCHAR(150)', 'ship_phone' => 'VARCHAR(40)',
           'ship_address' => 'VARCHAR(255)', 'ship_city' => 'VARCHAR(100)', 'ship_country' => 'VARCHAR(100)',
-          'ship_postal_code' => 'VARCHAR(30)'] as $col => $type) {
+          'ship_postal_code' => 'VARCHAR(30)', 'payment_method' => 'VARCHAR(30)'] as $col => $type) {
     $chk = $conn->query("SHOW COLUMNS FROM orders LIKE '$col'");
     if ($chk && $chk->num_rows === 0) {
         $conn->query("ALTER TABLE orders ADD COLUMN $col $type DEFAULT NULL");
     }
 }
 
-if (!isset($_SESSION['user_id'])) {
-    $_SESSION['redirect_after_login'] = '/alke/pages/checkout.php';
-    header("Location: /alke/pages/login.php");
-    exit();
-}
+/* Supported payment methods (value => label) */
+$paymentMethods = [
+    'cod'  => 'Cash on Delivery',
+    'cliq' => 'Pay with CLIQ',
+];
 
 if (!isset($_SESSION['cart'])) {
     $_SESSION['cart'] = [];
@@ -83,6 +83,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['place_order'])) {
     $city = isset($_POST['city']) ? trim($_POST['city']) : '';
     $country = isset($_POST['country']) ? trim($_POST['country']) : '';
     $postalCode = isset($_POST['postal_code']) ? trim($_POST['postal_code']) : '';
+    $paymentMethod = isset($_POST['payment_method']) ? trim($_POST['payment_method']) : '';
 
     $_SESSION['user_phone'] = $phone;
 
@@ -94,8 +95,10 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['place_order'])) {
         $errorMessage = 'Please fill all checkout details.';
     } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
         $errorMessage = 'Please enter a valid email address.';
+    } elseif (!isset($paymentMethods[$paymentMethod])) {
+        $errorMessage = 'Please select a payment method.';
     } else {
-        $_SESSION['pending_order'] = compact('name', 'email', 'phone', 'address', 'city', 'country', 'postalCode');
+        $_SESSION['pending_order'] = compact('name', 'email', 'phone', 'address', 'city', 'country', 'postalCode', 'paymentMethod');
         $orderPlaced = true;
     }
 }
@@ -109,7 +112,10 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['confirm_order'])) {
     } else {
         $pending = $_SESSION['pending_order'];
         $status  = 'pending';
-        $user_id = (int)$_SESSION['user_id'];
+        // Guest checkout: orders are placed without an account.
+        $user_id = isset($_SESSION['user_id']) ? (int)$_SESSION['user_id'] : null;
+        // Fall back to COD if an unknown method somehow slipped through.
+        $paymentMethod = isset($paymentMethods[$pending['paymentMethod'] ?? '']) ? $pending['paymentMethod'] : 'cod';
 
         $conn->begin_transaction();
 
@@ -134,17 +140,18 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['confirm_order'])) {
                 }
             }
 
-            /* 2. Insert order with shipping details */
+            /* 2. Insert order with shipping + payment details */
             $stmtOrder = $conn->prepare("
                 INSERT INTO orders
-                    (user_id, total_price, status, ship_name, ship_email, ship_phone, ship_address, ship_city, ship_country, ship_postal_code)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    (user_id, total_price, status, payment_method, ship_name, ship_email, ship_phone, ship_address, ship_city, ship_country, ship_postal_code)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ");
             $stmtOrder->bind_param(
-                "idssssssss",
+                "idsssssssss",
                 $user_id,
                 $totalPrice,
                 $status,
+                $paymentMethod,
                 $pending['name'],
                 $pending['email'],
                 $pending['phone'],
@@ -185,6 +192,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['confirm_order'])) {
 
             $_SESSION['cart'] = [];
             unset($_SESSION['pending_order']);
+            // Let the guest view the confirmation for the order they just placed.
+            $_SESSION['last_order_id'] = $order_id;
             header("Location: order_success.php?id=" . $order_id);
             exit();
         } catch (Exception $e) {
@@ -230,6 +239,12 @@ include '../includes/header.php';
             <strong>$<?php echo number_format((float)$totalPrice, 2); ?></strong>
           </div>
 
+          <?php $reviewPayment = $_SESSION['pending_order']['paymentMethod'] ?? 'cod'; ?>
+          <p class="checkout-review-payment">
+            <span>Payment Method</span>
+            <strong><?php echo htmlspecialchars($paymentMethods[$reviewPayment] ?? 'Cash on Delivery'); ?></strong>
+          </p>
+
           <form method="POST" action="/alke/pages/checkout.php" class="checkout-actions" style="margin-top: 20px;">
             <input type="hidden" name="confirm_order" value="1">
             <?php echo alke_csrf_field(); ?>
@@ -248,43 +263,64 @@ include '../includes/header.php';
           <div class="checkout-layout">
             <div class="checkout-card">
               <h3 class="checkout-card-title">Customer Details</h3>
-              <p class="checkout-card-subtitle">Enter your information to place the order.</p>
+              <p class="checkout-card-subtitle">Enter your information to place the order. Fields marked <span class="req">*</span> are required.</p>
 
-              <form method="POST" action="/alke/pages/checkout.php" class="checkout-form">
+              <form method="POST" action="/alke/pages/checkout.php" class="checkout-form" novalidate>
                 <?php echo alke_csrf_field(); ?>
                 <div class="checkout-field">
-                  <label for="checkoutName">Name</label>
+                  <label for="checkoutName">Name <span class="req">*</span></label>
                   <input type="text" id="checkoutName" name="name" value="<?php echo isset($_SESSION['user_name']) ? htmlspecialchars($_SESSION['user_name']) : ''; ?>" required>
                 </div>
 
                 <div class="checkout-field">
-                  <label for="checkoutEmail">Email</label>
+                  <label for="checkoutEmail">Email <span class="req">*</span></label>
                   <input type="email" id="checkoutEmail" name="email" value="<?php echo isset($_SESSION['user_email']) ? alke_esc($_SESSION['user_email']) : ''; ?>" required>
                 </div>
 
                 <div class="checkout-field">
-                  <label for="checkoutPhone">Phone Number</label>
+                  <label for="checkoutPhone">Phone Number <span class="req">*</span></label>
                   <input type="text" id="checkoutPhone" name="phone" value="<?php echo isset($_SESSION['user_phone']) ? htmlspecialchars($_SESSION['user_phone']) : ''; ?>" required>
                 </div>
 
                 <div class="checkout-field">
-                  <label for="checkoutAddress">Address</label>
+                  <label for="checkoutAddress">Address <span class="req">*</span></label>
                   <input type="text" id="checkoutAddress" name="address" required>
                 </div>
 
                 <div class="checkout-field">
-                  <label for="checkoutCity">City</label>
+                  <label for="checkoutCity">City <span class="req">*</span></label>
                   <input type="text" id="checkoutCity" name="city" required>
                 </div>
 
                 <div class="checkout-field">
-                  <label for="checkoutCountry">Country</label>
+                  <label for="checkoutCountry">Country <span class="req">*</span></label>
                   <input type="text" id="checkoutCountry" name="country" required>
                 </div>
 
                 <div class="checkout-field">
-                  <label for="checkoutPostal">Postal Code</label>
+                  <label for="checkoutPostal">Postal Code <span class="req">*</span></label>
                   <input type="text" id="checkoutPostal" name="postal_code" required>
+                </div>
+
+                <?php $chosenPayment = $_SESSION['pending_order']['paymentMethod'] ?? ''; ?>
+                <div class="checkout-field">
+                  <label>Payment Method <span class="req">*</span></label>
+                  <div class="payment-options">
+                    <label class="payment-option">
+                      <input type="radio" name="payment_method" value="cod" <?php echo $chosenPayment === 'cod' ? 'checked' : ''; ?>>
+                      <span class="payment-option-body">
+                        <span class="payment-option-title">💵 Cash on Delivery</span>
+                        <span class="payment-option-desc">Pay with cash when your order arrives.</span>
+                      </span>
+                    </label>
+                    <label class="payment-option">
+                      <input type="radio" name="payment_method" value="cliq" <?php echo $chosenPayment === 'cliq' ? 'checked' : ''; ?>>
+                      <span class="payment-option-body">
+                        <span class="payment-option-title">📱 Pay with CLIQ</span>
+                        <span class="payment-option-desc">Send payment via CLIQ; details shown after you confirm.</span>
+                      </span>
+                    </label>
+                  </div>
                 </div>
 
                 <div class="checkout-actions">

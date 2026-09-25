@@ -233,10 +233,10 @@ a   { text-decoration: none; color: inherit; }
 
 /* ── Hero ─────────────────────────────────────────────────────── */
 .hero {
-  min-height: 74vh;
+  min-height: 82vh;
   background:
-    linear-gradient(105deg, rgba(5,5,5,.82) 0%, rgba(5,5,5,.36) 60%),
-    url('../ALKE multiple models background.jpg') center / cover no-repeat;
+    linear-gradient(100deg, rgba(12,10,8,.78) 0%, rgba(12,10,8,.42) 42%, rgba(12,10,8,.12) 72%),
+    url('../assets/products/alke-18.jpg') center 22% / cover no-repeat;
   color: var(--white);
   display: flex;
   align-items: center;
@@ -286,6 +286,34 @@ a   { text-decoration: none; color: inherit; }
   margin-bottom: 30px;
   max-width: 440px;
   line-height: 1.75;
+}
+
+.hero-eyebrow {
+  display: inline-block;
+  font-size: .72rem;
+  font-weight: 600;
+  letter-spacing: .28em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 18px;
+  animation: heroRise .8s var(--ease-spring) both;
+}
+
+.hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  animation: heroRise .8s .24s var(--ease-spring) both;
+}
+
+.hero-btn-ghost {
+  background: transparent !important;
+  border: 1px solid rgba(255,255,255,.45) !important;
+  color: var(--white) !important;
+}
+.hero-btn-ghost:hover {
+  background: rgba(255,255,255,.12) !important;
+  border-color: var(--white) !important;
 }
 
 /* ── Buttons ─────────────────────────────────────────────────── */
@@ -1108,6 +1136,87 @@ a.checkout-secondary-btn:focus { color: #ffffff !important; }
   padding: 13px 16px;
   margin-bottom: 18px;
   font-size: .88rem;
+}
+
+/* Required-field asterisk */
+.req {
+  color: #c0392b;
+  font-weight: 700;
+}
+
+/* ── Payment method options ─────────────────────────────────── */
+.payment-options {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 6px;
+}
+.payment-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  cursor: pointer;
+  transition: border-color .18s var(--ease), background .18s var(--ease), box-shadow .18s var(--ease);
+}
+.payment-option:hover { border-color: var(--accent-border); background: var(--soft-bg); }
+.payment-option input { margin-top: 3px; accent-color: var(--accent); }
+.payment-option:has(input:checked) {
+  border-color: var(--accent);
+  background: var(--accent-light);
+  box-shadow: 0 0 0 2px var(--accent-light);
+}
+.payment-option-body { display: flex; flex-direction: column; gap: 2px; }
+.payment-option-title { font-weight: 600; color: var(--ink); }
+.payment-option-desc  { font-size: .82rem; color: var(--muted); }
+
+/* Payment line in review / confirmation */
+.checkout-review-payment {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px dashed var(--border);
+  font-size: .92rem;
+}
+.checkout-review-payment strong { color: var(--ink); }
+
+/* Order confirmed badge */
+.order-confirmed-badge {
+  width: 56px;
+  height: 56px;
+  margin: 0 auto 14px;
+  border-radius: 50%;
+  background: #e6f7ec;
+  color: #1e8f4e;
+  font-size: 1.8rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* CLIQ / COD instructions box */
+.cliq-instructions {
+  margin-top: 18px;
+  padding: 16px 18px;
+  border: 1px solid var(--accent-border);
+  background: var(--accent-light);
+  border-radius: var(--r-sm);
+  font-size: .9rem;
+}
+.cliq-instructions h4 { margin-bottom: 6px; color: var(--ink); }
+.cliq-instructions p  { margin: 4px 0; }
+.cliq-instructions.cod-note { border-color: var(--border); background: var(--soft-bg); }
+.cliq-alias {
+  font-size: 1.25rem;
+  font-weight: 700;
+  letter-spacing: .05em;
+  color: var(--accent-dark);
+  margin: 8px 0 !important;
 }
 
 .checkout-success {

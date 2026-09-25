@@ -89,6 +89,3 @@ WHERE (SELECT COUNT(*) FROM categories) = 1;
 INSERT INTO categories (name)
 SELECT * FROM (SELECT 'Accessories') AS tmp
 WHERE (SELECT COUNT(*) FROM categories) = 2;
-INSERT INTO categories (name)
-SELECT * FROM (SELECT 'Footwear') AS tmp
-WHERE (SELECT COUNT(*) FROM categories) = 3;

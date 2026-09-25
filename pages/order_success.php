@@ -2,24 +2,38 @@
 session_start();
 include '../config/db.php';
 
-if (!isset($_SESSION['user_id'])) {
-    header("Location: /alke/pages/login.php");
-    exit();
-}
-
 include '../includes/header.php';
 
 $orderId = isset($_GET['id']) ? (int)$_GET['id'] : 0;
-$userId = (int)$_SESSION['user_id'];
+
+$paymentMethods = [
+    'cod'  => 'Cash on Delivery',
+    'cliq' => 'Pay with CLIQ',
+];
+
+// CLIQ payee details — replace with your real CLIQ alias/number before going live.
+$cliqAlias = 'ALKESTORE';
+
+// Access control for guest checkout: a visitor may only view the order they
+// just placed in this session. A logged-in user may view their own orders.
+$isSessionOrder = isset($_SESSION['last_order_id']) && (int)$_SESSION['last_order_id'] === $orderId;
+$isLoggedIn     = isset($_SESSION['user_id']);
+
 $order = null;
 $orderItems = [];
 $errorMessage = '';
 
-if ($orderId <= 0) {
+if ($orderId <= 0 || (!$isSessionOrder && !$isLoggedIn)) {
     $errorMessage = 'Invalid order ID';
 } else {
-    $stmtOrder = $conn->prepare("SELECT * FROM orders WHERE id = ? AND user_id = ?");
-    $stmtOrder->bind_param("ii", $orderId, $userId);
+    if ($isSessionOrder) {
+        $stmtOrder = $conn->prepare("SELECT * FROM orders WHERE id = ?");
+        $stmtOrder->bind_param("i", $orderId);
+    } else {
+        $userId = (int)$_SESSION['user_id'];
+        $stmtOrder = $conn->prepare("SELECT * FROM orders WHERE id = ? AND user_id = ?");
+        $stmtOrder->bind_param("ii", $orderId, $userId);
+    }
     $stmtOrder->execute();
     $orderResult = $stmtOrder->get_result();
 
@@ -67,9 +81,15 @@ if ($orderId <= 0) {
           <a href="/alke/pages/products.php" class="btn">Go to Shop</a>
         </div>
       <?php else: ?>
+        <?php
+          $orderPayment = $order['payment_method'] ?? 'cod';
+          $orderPaymentLabel = $paymentMethods[$orderPayment] ?? 'Cash on Delivery';
+        ?>
         <div class="checkout-card" style="max-width: 800px; margin: 0 auto;">
-          <h3 class="checkout-card-title">Thank you for your order</h3>
-          <p><strong>Order ID:</strong> #<?php echo (int)$order['id']; ?></p>
+          <div class="order-confirmed-badge">✓</div>
+          <h3 class="checkout-card-title" style="text-align:center;">Thank you for your order</h3>
+          <p style="text-align:center;">Your order has been placed successfully.</p>
+          <p style="text-align:center;"><strong>Order ID:</strong> #<?php echo (int)$order['id']; ?></p>
 
           <div class="checkout-summary-list" style="margin-top: 20px;">
             <?php foreach ($orderItems as $item): ?>
@@ -93,6 +113,24 @@ if ($orderId <= 0) {
             <span>Total</span>
             <strong>$<?php echo number_format((float)$order['total_price'], 2); ?></strong>
           </div>
+
+          <p class="checkout-review-payment">
+            <span>Payment Method</span>
+            <strong><?php echo htmlspecialchars($orderPaymentLabel); ?></strong>
+          </p>
+
+          <?php if ($orderPayment === 'cliq'): ?>
+            <div class="cliq-instructions">
+              <h4>Complete your CLIQ payment</h4>
+              <p>Please send <strong>$<?php echo number_format((float)$order['total_price'], 2); ?></strong> via CLIQ to:</p>
+              <p class="cliq-alias"><?php echo htmlspecialchars($cliqAlias); ?></p>
+              <p>Use <strong>Order #<?php echo (int)$order['id']; ?></strong> as the payment reference. Your order will be processed once payment is confirmed.</p>
+            </div>
+          <?php else: ?>
+            <div class="cliq-instructions cod-note">
+              <p>You chose <strong>Cash on Delivery</strong> — please have <strong>$<?php echo number_format((float)$order['total_price'], 2); ?></strong> ready when your order arrives.</p>
+            </div>
+          <?php endif; ?>
 
           <div class="checkout-actions" style="margin-top: 20px;">
             <a href="/alke/pages/products.php" class="btn">Continue Shopping</a>

@@ -55,7 +55,7 @@ if (!empty($_SESSION['cart'])) {
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="csrf-token" content="<?php echo alke_esc(alke_csrf_token()); ?>">
   <title>Alke Clothes</title>
-  <link rel="stylesheet" href="/alke/css/style.css?v=3.3">
+  <link rel="stylesheet" href="/alke/css/style.css?v=3.6">
 </head>
 <body>
   <header class="site-header">
@@ -73,13 +73,6 @@ if (!empty($_SESSION['cart'])) {
         <a href="/alke/index.php">Home</a>
         <a href="/alke/pages/products.php">Shop</a>
         <a href="/alke/pages/contact.php">Contact</a>
-
-        <?php if (!isset($_SESSION['user_id'])): ?>
-          <a href="/alke/pages/login.php">Login</a>
-          <a href="/alke/pages/register.php">Register</a>
-        <?php else: ?>
-          <a href="/alke/pages/logout.php">Logout</a>
-        <?php endif; ?>
       </nav>
 
       <form class="nav-search" action="/alke/pages/products.php" method="GET" role="search">
@@ -100,12 +93,6 @@ if (!empty($_SESSION['cart'])) {
             <span class="cart-count-badge"><?php echo (int)$miniCartCount; ?></span>
           <?php endif; ?>
         </button>
-
-        <?php if (isset($_SESSION['user_id'])): ?>
-        <a href="/alke/pages/profile.php" class="profile-link" aria-label="Open profile">
-          <span>Profile</span>
-        </a>
-        <?php endif; ?>
       </div>
     </div>
   </header>

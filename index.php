@@ -25,9 +25,13 @@ if ($catResult) {
   <section class="hero">
     <div class="container">
       <div class="hero-content">
-        <h1>New Collection</h1>
-        <p>Discover modern premium essentials curated for every season and every style.</p>
-        <a href="/alke/pages/products.php" class="btn">Shop Now</a>
+        <span class="hero-eyebrow">The Debut Collection</span>
+        <h1>Comfort, refined.</h1>
+        <p>Elevated everyday essentials in Sand &amp; Black. Heavyweight fleece, considered details, made to be lived in.</p>
+        <div class="hero-actions">
+          <a href="/alke/pages/products.php" class="btn">Shop the Collection</a>
+          <a href="/alke/pages/products.php?category=2" class="btn hero-btn-ghost">Shop Sets</a>
+        </div>
       </div>
     </div>
   </section>
