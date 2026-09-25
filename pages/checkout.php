@@ -1,8 +1,20 @@
 <?php
 session_start();
 include '../config/db.php';
+include '../includes/helpers.php';
+
+/* Auto-migrate: add shipping columns to orders if missing */
+foreach (['ship_name' => 'VARCHAR(150)', 'ship_email' => 'VARCHAR(150)', 'ship_phone' => 'VARCHAR(40)',
+          'ship_address' => 'VARCHAR(255)', 'ship_city' => 'VARCHAR(100)', 'ship_country' => 'VARCHAR(100)',
+          'ship_postal_code' => 'VARCHAR(30)'] as $col => $type) {
+    $chk = $conn->query("SHOW COLUMNS FROM orders LIKE '$col'");
+    if ($chk && $chk->num_rows === 0) {
+        $conn->query("ALTER TABLE orders ADD COLUMN $col $type DEFAULT NULL");
+    }
+}
 
 if (!isset($_SESSION['user_id'])) {
+    $_SESSION['redirect_after_login'] = '/alke/pages/checkout.php';
     header("Location: /alke/pages/login.php");
     exit();
 }
@@ -28,11 +40,7 @@ if (!empty($_SESSION['cart'])) {
                 $quantity = isset($_SESSION['cart'][$productId]) ? (int)$_SESSION['cart'][$productId] : 1;
                 $quantity = max(1, $quantity);
 
-                $dbImage = isset($row['image']) ? trim($row['image']) : '';
-                $imagePath = '/alke/testblackshirt.jpeg';
-                if (!empty($dbImage) && file_exists(__DIR__ . '/../assets/' . $dbImage)) {
-                    $imagePath = '/alke/assets/' . $dbImage;
-                }
+                $imagePath = alke_product_image($row);
 
                 $subtotal = ((float)$row['price']) * $quantity;
                 $totalPrice += $subtotal;
@@ -66,7 +74,8 @@ function preparePaymentPayload($orderId, $amount, $customerName, $customerEmail)
     ];
 }
 
-if ($_SERVER["REQUEST_METHOD"] == "POST") {
+// Step 1: Validate form fields and store in session for review
+if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['place_order'])) {
     $name = isset($_POST['name']) ? trim($_POST['name']) : '';
     $email = isset($_POST['email']) ? trim($_POST['email']) : '';
     $phone = isset($_POST['phone']) ? trim($_POST['phone']) : '';
@@ -77,54 +86,110 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
     $_SESSION['user_phone'] = $phone;
 
-    if (empty($cartItems)) {
+    if (!alke_csrf_check()) {
+        $errorMessage = 'Your session expired. Please try again.';
+    } elseif (empty($cartItems)) {
         $errorMessage = 'Your cart is empty.';
     } elseif ($name === '' || $email === '' || $phone === '' || $address === '' || $city === '' || $country === '' || $postalCode === '') {
         $errorMessage = 'Please fill all checkout details.';
+    } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        $errorMessage = 'Please enter a valid email address.';
     } else {
-        $status = 'pending';
+        $_SESSION['pending_order'] = compact('name', 'email', 'phone', 'address', 'city', 'country', 'postalCode');
+        $orderPlaced = true;
+    }
+}
+
+// Step 2: User confirmed — insert order in a transaction with stock checks
+if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['confirm_order'])) {
+    if (!alke_csrf_check()) {
+        $errorMessage = 'Your session expired. Please try again.';
+    } elseif (empty($cartItems) || empty($_SESSION['pending_order'])) {
+        $errorMessage = 'Session expired. Please fill checkout details again.';
+    } else {
+        $pending = $_SESSION['pending_order'];
+        $status  = 'pending';
         $user_id = (int)$_SESSION['user_id'];
-        $stmtOrder = $conn->prepare("INSERT INTO orders (user_id, total_price, status) VALUES (?, ?, ?)");
-        
-        if (!$stmtOrder) {
-            $errorMessage = 'Order prepare failed: ' . $conn->error;
-        } else {
-            $stmtOrder->bind_param("ids", $user_id, $totalPrice, $status);
 
-            if ($stmtOrder->execute()) {
-                $order_id = (int)$conn->insert_id;
+        $conn->begin_transaction();
 
-                $stmtItem = $conn->prepare("INSERT INTO order_items (order_id, product_id, quantity) VALUES (?, ?, ?)");
-                if (!$stmtItem) {
-                    $errorMessage = 'Order item prepare failed: ' . $conn->error;
-                } else {
-                    $itemsSaved = true;
+        try {
+            /* 1. Lock product rows and verify stock */
+            foreach ($cartItems as $item) {
+                $pid = (int)$item['id'];
+                $qty = (int)$item['quantity'];
 
-                    foreach ($cartItems as $item) {
-                        $pid = (int)$item['id'];
-                        $qty = (int)$item['quantity'];
+                $stmtLock = $conn->prepare("SELECT name, stock FROM products WHERE id = ? FOR UPDATE");
+                $stmtLock->bind_param('i', $pid);
+                $stmtLock->execute();
+                $lockRes = $stmtLock->get_result();
+                $lockRow = $lockRes ? $lockRes->fetch_assoc() : null;
+                $stmtLock->close();
 
-                        $stmtItem->bind_param("iii", $order_id, $pid, $qty);
-                        if (!$stmtItem->execute()) {
-                            $itemsSaved = false;
-                            $errorMessage = 'Order item insert failed: ' . $stmtItem->error;
-                            break;
-                        }
-                    }
-
-                    $stmtItem->close();
-
-                    if ($itemsSaved) {
-                        $_SESSION['cart'] = [];
-                        header("Location: order_success.php?id=" . $order_id);
-                        exit();
-                    }
+                if (!$lockRow) {
+                    throw new Exception('A product in your cart is no longer available.');
                 }
-            } else {
-                $errorMessage = 'Order insert failed: ' . $stmtOrder->error;
+                if ((int)$lockRow['stock'] < $qty) {
+                    throw new Exception('"' . $lockRow['name'] . '" only has ' . (int)$lockRow['stock'] . ' in stock. Please update your cart.');
+                }
             }
 
+            /* 2. Insert order with shipping details */
+            $stmtOrder = $conn->prepare("
+                INSERT INTO orders
+                    (user_id, total_price, status, ship_name, ship_email, ship_phone, ship_address, ship_city, ship_country, ship_postal_code)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ");
+            $stmtOrder->bind_param(
+                "idssssssss",
+                $user_id,
+                $totalPrice,
+                $status,
+                $pending['name'],
+                $pending['email'],
+                $pending['phone'],
+                $pending['address'],
+                $pending['city'],
+                $pending['country'],
+                $pending['postalCode']
+            );
+            if (!$stmtOrder->execute()) {
+                throw new Exception('Could not save your order. Please try again.');
+            }
+            $order_id = (int)$conn->insert_id;
             $stmtOrder->close();
+
+            /* 3. Insert items and decrement stock */
+            $stmtItem  = $conn->prepare("INSERT INTO order_items (order_id, product_id, quantity) VALUES (?, ?, ?)");
+            $stmtStock = $conn->prepare("UPDATE products SET stock = stock - ? WHERE id = ?");
+
+            foreach ($cartItems as $item) {
+                $pid = (int)$item['id'];
+                $qty = (int)$item['quantity'];
+
+                $stmtItem->bind_param("iii", $order_id, $pid, $qty);
+                if (!$stmtItem->execute()) {
+                    throw new Exception('Could not save your order items. Please try again.');
+                }
+
+                $stmtStock->bind_param("ii", $qty, $pid);
+                if (!$stmtStock->execute()) {
+                    throw new Exception('Could not update product stock. Please try again.');
+                }
+            }
+
+            $stmtItem->close();
+            $stmtStock->close();
+
+            $conn->commit();
+
+            $_SESSION['cart'] = [];
+            unset($_SESSION['pending_order']);
+            header("Location: order_success.php?id=" . $order_id);
+            exit();
+        } catch (Exception $e) {
+            $conn->rollback();
+            $errorMessage = $e->getMessage();
         }
     }
 }
@@ -141,11 +206,36 @@ include '../includes/header.php';
       </div>
 
       <?php if ($orderPlaced): ?>
-        <div class="checkout-success">
-          <div class="checkout-success-icon">✓</div>
-          <h3>Order placed successfully</h3>
-          <p>Thank you for shopping with Alke Clothes.</p>
-          <a href="/alke/pages/products.php" class="btn">Continue Shopping</a>
+        <div class="checkout-card" style="max-width: 800px; margin: 0 auto;">
+          <h3 class="checkout-card-title">Review Your Order</h3>
+          <p class="checkout-card-subtitle">Please confirm your order details before placing it.</p>
+
+          <div class="checkout-summary-list" style="margin-top: 20px;">
+            <?php foreach ($cartItems as $item): ?>
+              <div class="checkout-summary-item">
+                <div class="checkout-item-left">
+                  <img src="<?php echo htmlspecialchars($item['image_path']); ?>" alt="<?php echo htmlspecialchars($item['name']); ?>" class="checkout-item-thumb">
+                  <div>
+                    <p class="checkout-item-name"><?php echo htmlspecialchars($item['name']); ?></p>
+                    <p class="checkout-item-meta">Qty: <?php echo (int)$item['quantity']; ?> × $<?php echo number_format((float)$item['price'], 2); ?></p>
+                  </div>
+                </div>
+                <p class="checkout-item-subtotal">$<?php echo number_format((float)$item['subtotal'], 2); ?></p>
+              </div>
+            <?php endforeach; ?>
+          </div>
+
+          <div class="checkout-total">
+            <span>Total</span>
+            <strong>$<?php echo number_format((float)$totalPrice, 2); ?></strong>
+          </div>
+
+          <form method="POST" action="/alke/pages/checkout.php" class="checkout-actions" style="margin-top: 20px;">
+            <input type="hidden" name="confirm_order" value="1">
+            <?php echo alke_csrf_field(); ?>
+            <button type="submit" class="btn">Confirm Order</button>
+            <a href="/alke/pages/checkout.php" class="btn checkout-secondary-btn">Edit Order</a>
+          </form>
         </div>
       <?php else: ?>
         <?php if (!empty($errorMessage)): ?>
@@ -161,6 +251,7 @@ include '../includes/header.php';
               <p class="checkout-card-subtitle">Enter your information to place the order.</p>
 
               <form method="POST" action="/alke/pages/checkout.php" class="checkout-form">
+                <?php echo alke_csrf_field(); ?>
                 <div class="checkout-field">
                   <label for="checkoutName">Name</label>
                   <input type="text" id="checkoutName" name="name" value="<?php echo isset($_SESSION['user_name']) ? htmlspecialchars($_SESSION['user_name']) : ''; ?>" required>
@@ -168,7 +259,7 @@ include '../includes/header.php';
 
                 <div class="checkout-field">
                   <label for="checkoutEmail">Email</label>
-                  <input type="email" id="checkoutEmail" name="email" required>
+                  <input type="email" id="checkoutEmail" name="email" value="<?php echo isset($_SESSION['user_email']) ? alke_esc($_SESSION['user_email']) : ''; ?>" required>
                 </div>
 
                 <div class="checkout-field">

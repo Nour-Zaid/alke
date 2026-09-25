@@ -3,6 +3,9 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 include __DIR__ . '/../config/db.php';
+include __DIR__ . '/helpers.php';
+
+alke_security_headers();
 
 $miniCartItems = [];
 $miniCartTotal = 0;
@@ -28,12 +31,7 @@ if (!empty($_SESSION['cart'])) {
                     $qty = 1;
                 }
 
-                $dbImage = isset($row['image']) ? trim($row['image']) : '';
-                $imagePath = '/alke/testblackshirt.jpeg';
-                if (!empty($dbImage) && file_exists(__DIR__ . '/../assets/' . $dbImage)) {
-                    $imagePath = '/alke/assets/' . $dbImage;
-                }
-
+                $imagePath = alke_product_image($row);
                 $lineTotal = ((float)$row['price']) * $qty;
                 $miniCartTotal += $lineTotal;
 
@@ -55,8 +53,9 @@ if (!empty($_SESSION['cart'])) {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="csrf-token" content="<?php echo alke_esc(alke_csrf_token()); ?>">
   <title>Alke Clothes</title>
-  <link rel="stylesheet" href="/alke/css/style.css?v=2.3">
+  <link rel="stylesheet" href="/alke/css/style.css?v=3.3">
 </head>
 <body>
   <header class="site-header">
@@ -73,9 +72,7 @@ if (!empty($_SESSION['cart'])) {
       <nav class="site-nav" id="siteNav">
         <a href="/alke/index.php">Home</a>
         <a href="/alke/pages/products.php">Shop</a>
-        <a href="#">Men</a>
-        <a href="#">Women</a>
-        <a href="#">Contact</a>
+        <a href="/alke/pages/contact.php">Contact</a>
 
         <?php if (!isset($_SESSION['user_id'])): ?>
           <a href="/alke/pages/login.php">Login</a>
@@ -85,7 +82,17 @@ if (!empty($_SESSION['cart'])) {
         <?php endif; ?>
       </nav>
 
-      <?php if (isset($_SESSION['user_id'])): ?>
+      <form class="nav-search" action="/alke/pages/products.php" method="GET" role="search">
+        <input
+          type="search"
+          name="q"
+          placeholder="Search products…"
+          aria-label="Search products"
+          value="<?php echo isset($_GET['q']) ? alke_esc($_GET['q']) : ''; ?>"
+        >
+        <button type="submit" aria-label="Search">🔍</button>
+      </form>
+
       <div class="nav-user-actions">
         <button type="button" id="cartDrawerToggle" class="cart-icon cart-toggle-btn" aria-label="Open cart panel">
           <span class="cart-emoji">🛒</span>
@@ -94,15 +101,15 @@ if (!empty($_SESSION['cart'])) {
           <?php endif; ?>
         </button>
 
+        <?php if (isset($_SESSION['user_id'])): ?>
         <a href="/alke/pages/profile.php" class="profile-link" aria-label="Open profile">
           <span>Profile</span>
         </a>
+        <?php endif; ?>
       </div>
-      <?php endif; ?>
     </div>
   </header>
 
-  <?php if (isset($_SESSION['user_id'])): ?>
   <aside class="cart-drawer" id="cartDrawer" aria-hidden="true">
     <div class="cart-drawer-header">
       <h3>Your Cart</h3>
@@ -135,4 +142,40 @@ if (!empty($_SESSION['cart'])) {
     </div>
   </aside>
   <div class="cart-drawer-overlay" id="cartDrawerOverlay"></div>
-  <?php endif; ?>
+
+<script>
+function _esc(s) {
+  var d = document.createElement('div');
+  d.appendChild(document.createTextNode(String(s)));
+  return d.innerHTML;
+}
+
+window.refreshMiniCart = function (miniCart) {
+  var body  = document.querySelector('.cart-drawer-body');
+  var total = document.querySelector('.mini-cart-total');
+  if (!body) return;
+
+  if (!miniCart || !miniCart.items || miniCart.items.length === 0) {
+    body.innerHTML = '<p class="mini-cart-empty">Your cart is empty.</p>';
+    if (total) total.textContent = 'Total: $0.00';
+    return;
+  }
+
+  var html = '';
+  miniCart.items.forEach(function (item) {
+    html += '<div class="mini-cart-item">'
+      + '<a href="/alke/pages/product.php?id=' + item.id + '" class="mini-cart-thumb-link">'
+      + '<img src="' + _esc(item.image) + '" alt="' + _esc(item.name) + '" class="mini-cart-thumb">'
+      + '</a>'
+      + '<div class="mini-cart-info">'
+      + '<a href="/alke/pages/product.php?id=' + item.id + '" class="mini-cart-name-link">'
+      + '<p class="mini-cart-name">' + _esc(item.name) + '</p>'
+      + '</a>'
+      + '<p class="mini-cart-meta">Qty: ' + item.qty + ' &bull; $' + item.line_total.toFixed(2) + '</p>'
+      + '</div></div>';
+  });
+
+  body.innerHTML = html;
+  if (total) total.textContent = 'Total: $' + miniCart.total.toFixed(2);
+};
+</script>
