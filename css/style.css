@@ -579,23 +579,26 @@ a.checkout-secondary-btn:focus { color: #ffffff !important; }
 /* Push the primary CTA to the right on desktop */
 .cart-checkout-btn { margin-left: auto; }
 
-/* Secondary (outline) buttons */
-.cart-actions .btn-ghost {
+/* Secondary (outline) buttons — dark text on white (element-qualified so it
+   reliably overrides the global .btn white-text rule) */
+a.btn-ghost, a.btn-ghost:visited, a.btn-ghost:active, a.btn-ghost:focus,
+button.btn-ghost, button.btn-ghost:active, button.btn-ghost:focus {
   background: var(--white) !important;
   color: var(--ink) !important;
   border: 1px solid var(--border-dark) !important;
 }
-.cart-actions .btn-ghost:hover {
+a.btn-ghost:hover, button.btn-ghost:hover {
   background: var(--soft-bg) !important;
   border-color: var(--ink) !important;
   color: var(--ink) !important;
 }
 /* Clear cart = subtle danger */
-.cart-actions .cart-clear {
+a.cart-clear, button.cart-clear,
+a.cart-clear:focus, button.cart-clear:focus {
   color: #c0392b !important;
   border-color: #e6b3ab !important;
 }
-.cart-actions .cart-clear:hover {
+a.cart-clear:hover, button.cart-clear:hover {
   background: #fdecea !important;
   border-color: #c0392b !important;
   color: #c0392b !important;

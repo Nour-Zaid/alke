@@ -239,4 +239,57 @@ if ($productId > 0) {
   </section>
 </main>
 
+<script>
+(function () {
+  var form = document.querySelector('.product-buy-form');
+  if (!form) return;
+  var btn = form.querySelector('button[name="add_to_cart"]');
+  if (!btn) return;
+
+  function updateBadge(count) {
+    var toggle = document.getElementById('cartDrawerToggle');
+    var badge = document.querySelector('.cart-count-badge');
+    if (count > 0) {
+      if (!badge && toggle) {
+        badge = document.createElement('span');
+        badge.className = 'cart-count-badge';
+        toggle.appendChild(badge);
+      }
+      if (badge) badge.textContent = count;
+    } else if (badge) {
+      badge.remove();
+    }
+  }
+
+  form.addEventListener('submit', function (e) {
+    e.preventDefault();
+    var data = new FormData(form);
+    data.set('action', 'add');
+    var original = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = 'Adding…';
+
+    fetch('/alke/pages/update_cart.php', {
+      method: 'POST',
+      body: data,
+      headers: { 'X-Requested-With': 'XMLHttpRequest' }
+    })
+      .then(function (r) { return r.json(); })
+      .then(function (res) {
+        if (res && typeof res.cart_count !== 'undefined') updateBadge(res.cart_count);
+        if (res && res.mini_cart && window.refreshMiniCart) window.refreshMiniCart(res.mini_cart);
+        if (res && !res.success && res.message) { alert(res.message); }
+        btn.textContent = res && res.success ? 'Added ✓' : original;
+        if (typeof openCartDrawer === 'function') openCartDrawer();
+        setTimeout(function () { btn.textContent = original; btn.disabled = false; }, 1400);
+      })
+      .catch(function () {
+        // Network/JS issue — fall back to a normal form submit
+        btn.disabled = false;
+        form.submit();
+      });
+  });
+})();
+</script>
+
 <?php include '../includes/footer.php'; ?>
