@@ -563,6 +563,50 @@ a.checkout-secondary-btn:focus { color: #ffffff !important; }
   margin-bottom: 14px;
 }
 
+/* Cart action buttons — consistent, aligned row */
+.cart-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+.cart-actions .btn {
+  margin: 0;
+  padding: 12px 22px;
+  font-size: .86rem;
+  white-space: nowrap;
+}
+/* Push the primary CTA to the right on desktop */
+.cart-checkout-btn { margin-left: auto; }
+
+/* Secondary (outline) buttons */
+.cart-actions .btn-ghost {
+  background: var(--white) !important;
+  color: var(--ink) !important;
+  border: 1px solid var(--border-dark) !important;
+}
+.cart-actions .btn-ghost:hover {
+  background: var(--soft-bg) !important;
+  border-color: var(--ink) !important;
+  color: var(--ink) !important;
+}
+/* Clear cart = subtle danger */
+.cart-actions .cart-clear {
+  color: #c0392b !important;
+  border-color: #e6b3ab !important;
+}
+.cart-actions .cart-clear:hover {
+  background: #fdecea !important;
+  border-color: #c0392b !important;
+  color: #c0392b !important;
+}
+
+@media (max-width: 560px) {
+  .cart-actions { flex-direction: column; align-items: stretch; }
+  .cart-actions .btn { width: 100%; text-align: center; }
+  .cart-checkout-btn { margin-left: 0; order: -1; } /* checkout on top on mobile */
+}
+
 /* Qty control */
 .qty-control {
   display: inline-flex;

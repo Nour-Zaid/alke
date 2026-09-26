@@ -94,10 +94,10 @@ if (!empty($_SESSION['cart'])) {
         <div class="cart-summary">
           <h3 id="cartTotalText">Total: JD <?php echo number_format((float)$totalPrice, 2); ?></h3>
 
-          <div class="product-details-actions">
-            <button type="button" id="clearCartBtn" class="btn product-btn">Clear Cart</button>
-            <a href="/alke/pages/products.php" class="btn">Continue Shopping</a>
-            <a href="/alke/pages/checkout.php" class="btn">Proceed to Checkout</a>
+          <div class="cart-actions">
+            <button type="button" id="clearCartBtn" class="btn btn-ghost cart-clear">Clear Cart</button>
+            <a href="/alke/pages/products.php" class="btn btn-ghost">Continue Shopping</a>
+            <a href="/alke/pages/checkout.php" class="btn cart-checkout-btn">Proceed to Checkout</a>
           </div>
         </div>
       <?php else: ?>
