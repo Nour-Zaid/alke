@@ -55,7 +55,7 @@ if (!empty($_SESSION['cart'])) {
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="csrf-token" content="<?php echo alke_esc(alke_csrf_token()); ?>">
   <title>Alke Clothes</title>
-  <link rel="stylesheet" href="/alke/css/style.css?v=3.6">
+  <link rel="stylesheet" href="/alke/css/style.css?v=3.7">
 </head>
 <body>
   <header class="site-header">
@@ -114,7 +114,7 @@ if (!empty($_SESSION['cart'])) {
               <a href="/alke/pages/product.php?id=<?php echo (int)$item['id']; ?>" class="mini-cart-name-link">
                 <p class="mini-cart-name"><?php echo htmlspecialchars($item['name']); ?></p>
               </a>
-              <p class="mini-cart-meta">Qty: <?php echo (int)$item['qty']; ?> • $<?php echo number_format((float)$item['line_total'], 2); ?></p>
+              <p class="mini-cart-meta">Qty: <?php echo (int)$item['qty']; ?> • JD <?php echo number_format((float)$item['line_total'], 2); ?></p>
             </div>
           </div>
         <?php endforeach; ?>
@@ -124,7 +124,7 @@ if (!empty($_SESSION['cart'])) {
     </div>
 
     <div class="cart-drawer-footer">
-      <p class="mini-cart-total">Total: $<?php echo number_format((float)$miniCartTotal, 2); ?></p>
+      <p class="mini-cart-total">Total: JD <?php echo number_format((float)$miniCartTotal, 2); ?></p>
       <a href="/alke/pages/cart.php" class="btn mini-cart-full-btn">Go to Full Cart</a>
     </div>
   </aside>
@@ -144,7 +144,7 @@ window.refreshMiniCart = function (miniCart) {
 
   if (!miniCart || !miniCart.items || miniCart.items.length === 0) {
     body.innerHTML = '<p class="mini-cart-empty">Your cart is empty.</p>';
-    if (total) total.textContent = 'Total: $0.00';
+    if (total) total.textContent = 'Total: JD 0.00';
     return;
   }
 
@@ -158,11 +158,11 @@ window.refreshMiniCart = function (miniCart) {
       + '<a href="/alke/pages/product.php?id=' + item.id + '" class="mini-cart-name-link">'
       + '<p class="mini-cart-name">' + _esc(item.name) + '</p>'
       + '</a>'
-      + '<p class="mini-cart-meta">Qty: ' + item.qty + ' &bull; $' + item.line_total.toFixed(2) + '</p>'
+      + '<p class="mini-cart-meta">Qty: ' + item.qty + ' &bull; JD ' + item.line_total.toFixed(2) + '</p>'
       + '</div></div>';
   });
 
   body.innerHTML = html;
-  if (total) total.textContent = 'Total: $' + miniCart.total.toFixed(2);
+  if (total) total.textContent = 'Total: JD ' + miniCart.total.toFixed(2);
 };
 </script>

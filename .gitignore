@@ -4,3 +4,7 @@ config/db.local.php
 # OS
 .DS_Store
 Thumbs.db
+
+# Runtime user uploads (payment proofs) — keep the folder, ignore contents
+assets/uploads/proofs/*
+!assets/uploads/proofs/.gitkeep

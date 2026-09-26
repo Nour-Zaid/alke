@@ -73,7 +73,7 @@ if (!empty($_SESSION['cart'])) {
                     </a>
                   </td>
                   <td><?php echo htmlspecialchars($item['name']); ?></td>
-                  <td class="item-price">$<?php echo number_format((float)$item['price'], 2); ?></td>
+                  <td class="item-price">JD <?php echo number_format((float)$item['price'], 2); ?></td>
                   <td>
                     <div class="qty-control">
                       <button type="button" class="qty-btn js-qty-btn" data-direction="decrease">−</button>
@@ -81,7 +81,7 @@ if (!empty($_SESSION['cart'])) {
                       <button type="button" class="qty-btn js-qty-btn" data-direction="increase">+</button>
                     </div>
                   </td>
-                  <td class="item-subtotal">$<?php echo number_format((float)$item['subtotal'], 2); ?></td>
+                  <td class="item-subtotal">JD <?php echo number_format((float)$item['subtotal'], 2); ?></td>
                   <td>
                     <button type="button" class="btn product-btn js-remove-item">Remove</button>
                   </td>
@@ -92,7 +92,7 @@ if (!empty($_SESSION['cart'])) {
         </div>
 
         <div class="cart-summary">
-          <h3 id="cartTotalText">Total: $<?php echo number_format((float)$totalPrice, 2); ?></h3>
+          <h3 id="cartTotalText">Total: JD <?php echo number_format((float)$totalPrice, 2); ?></h3>
 
           <div class="product-details-actions">
             <button type="button" id="clearCartBtn" class="btn product-btn">Clear Cart</button>
@@ -156,11 +156,11 @@ document.addEventListener('DOMContentLoaded', function () {
     if (!tableBody || !totalEl) return;
     let total = 0;
     tableBody.querySelectorAll('.cart-row').forEach(function (row) {
-      const subtotalText = row.querySelector('.item-subtotal') ? row.querySelector('.item-subtotal').textContent : '$0';
-      const subtotal = parseFloat(subtotalText.replace('$', '').trim()) || 0;
+      const subtotalText = row.querySelector('.item-subtotal') ? row.querySelector('.item-subtotal').textContent : '0';
+      const subtotal = parseFloat(subtotalText.replace(/[^0-9.]/g, '')) || 0;
       total += subtotal;
     });
-    totalEl.textContent = 'Total: $' + total.toFixed(2);
+    totalEl.textContent = 'Total: JD ' + total.toFixed(2);
   }
 
   if (tableBody) {
@@ -202,7 +202,7 @@ document.addEventListener('DOMContentLoaded', function () {
             } else {
               qtyEl.textContent = String(newQty);
               const subtotalCell = row.querySelector('.item-subtotal');
-              subtotalCell.textContent = '$' + (unitPrice * newQty).toFixed(2);
+              subtotalCell.textContent = 'JD ' + (unitPrice * newQty).toFixed(2);
             }
 
             if (!tableBody.querySelector('.cart-row')) {

@@ -279,7 +279,7 @@ include __DIR__ . '/includes/header.php';
             <td><?= (int)$p['id'] ?></td>
             <td><?= htmlspecialchars($p['name']) ?></td>
             <td><?= htmlspecialchars($p['category_name'] ?? '—') ?></td>
-            <td>$<?= number_format((float)$p['price'], 2) ?></td>
+            <td>JD <?= number_format((float)$p['price'], 2) ?></td>
             <td>
               <?php $s = (int)$p['stock']; ?>
               <span style="color: <?= $s === 0 ? '#dc3545' : ($s <= 5 ? '#d97706' : 'inherit') ?>; font-weight: <?= $s <= 5 ? 600 : 400 ?>;">

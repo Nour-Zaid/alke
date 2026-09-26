@@ -6,7 +6,8 @@ include '../includes/helpers.php';
 /* Auto-migrate: add shipping + payment columns to orders if missing */
 foreach (['ship_name' => 'VARCHAR(150)', 'ship_email' => 'VARCHAR(150)', 'ship_phone' => 'VARCHAR(40)',
           'ship_address' => 'VARCHAR(255)', 'ship_city' => 'VARCHAR(100)', 'ship_country' => 'VARCHAR(100)',
-          'ship_postal_code' => 'VARCHAR(30)', 'payment_method' => 'VARCHAR(30)'] as $col => $type) {
+          'ship_postal_code' => 'VARCHAR(30)', 'payment_method' => 'VARCHAR(30)',
+          'payment_proof' => 'VARCHAR(255)'] as $col => $type) {
     $chk = $conn->query("SHOW COLUMNS FROM orders LIKE '$col'");
     if ($chk && $chk->num_rows === 0) {
         $conn->query("ALTER TABLE orders ADD COLUMN $col $type DEFAULT NULL");
@@ -226,17 +227,17 @@ include '../includes/header.php';
                   <img src="<?php echo htmlspecialchars($item['image_path']); ?>" alt="<?php echo htmlspecialchars($item['name']); ?>" class="checkout-item-thumb">
                   <div>
                     <p class="checkout-item-name"><?php echo htmlspecialchars($item['name']); ?></p>
-                    <p class="checkout-item-meta">Qty: <?php echo (int)$item['quantity']; ?> × $<?php echo number_format((float)$item['price'], 2); ?></p>
+                    <p class="checkout-item-meta">Qty: <?php echo (int)$item['quantity']; ?> × JD <?php echo number_format((float)$item['price'], 2); ?></p>
                   </div>
                 </div>
-                <p class="checkout-item-subtotal">$<?php echo number_format((float)$item['subtotal'], 2); ?></p>
+                <p class="checkout-item-subtotal">JD <?php echo number_format((float)$item['subtotal'], 2); ?></p>
               </div>
             <?php endforeach; ?>
           </div>
 
           <div class="checkout-total">
             <span>Total</span>
-            <strong>$<?php echo number_format((float)$totalPrice, 2); ?></strong>
+            <strong>JD <?php echo number_format((float)$totalPrice, 2); ?></strong>
           </div>
 
           <?php $reviewPayment = $_SESSION['pending_order']['paymentMethod'] ?? 'cod'; ?>
@@ -339,17 +340,17 @@ include '../includes/header.php';
                       <img src="<?php echo htmlspecialchars($item['image_path']); ?>" alt="<?php echo htmlspecialchars($item['name']); ?>" class="checkout-item-thumb">
                       <div>
                         <p class="checkout-item-name"><?php echo htmlspecialchars($item['name']); ?></p>
-                        <p class="checkout-item-meta">Qty: <?php echo (int)$item['quantity']; ?> × $<?php echo number_format((float)$item['price'], 2); ?></p>
+                        <p class="checkout-item-meta">Qty: <?php echo (int)$item['quantity']; ?> × JD <?php echo number_format((float)$item['price'], 2); ?></p>
                       </div>
                     </div>
-                    <p class="checkout-item-subtotal">$<?php echo number_format((float)$item['subtotal'], 2); ?></p>
+                    <p class="checkout-item-subtotal">JD <?php echo number_format((float)$item['subtotal'], 2); ?></p>
                   </div>
                 <?php endforeach; ?>
               </div>
 
               <div class="checkout-total">
                 <span>Total</span>
-                <strong>$<?php echo number_format((float)$totalPrice, 2); ?></strong>
+                <strong>JD <?php echo number_format((float)$totalPrice, 2); ?></strong>
               </div>
             </div>
           </div>

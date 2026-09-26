@@ -81,7 +81,7 @@ if ($catResult) {
                 </div>
                 <div class="product-body">
                   <h3 class="product-name"><?php echo alke_esc($row['name']); ?></h3>
-                  <p class="product-price">$<?php echo number_format((float)$row['price'], 2); ?></p>
+                  <p class="product-price">JD <?php echo number_format((float)$row['price'], 2); ?></p>
                 </div>
               </a>
             </article>

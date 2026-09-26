@@ -130,7 +130,7 @@ if ($productId > 0) {
           <div class="product-details-content">
             <p class="product-details-label">Alke Clothes</p>
             <h1 class="product-details-title"><?php echo alke_esc($product['name']); ?></h1>
-            <p class="product-details-price">$<?php echo number_format((float)$product['price'], 2); ?></p>
+            <p class="product-details-price">JD <?php echo number_format((float)$product['price'], 2); ?></p>
 
             <p class="product-details-description">
               <?= !empty($product['description']) ? nl2br(alke_esc($product['description'])) : 'Premium fashion essential crafted for everyday comfort and timeless style.' ?>
@@ -221,7 +221,7 @@ if ($productId > 0) {
                   </div>
                   <div class="product-body">
                     <h3 class="product-name"><?php echo alke_esc($rel['name']); ?></h3>
-                    <p class="product-price">$<?php echo number_format((float)$rel['price'], 2); ?></p>
+                    <p class="product-price">JD <?php echo number_format((float)$rel['price'], 2); ?></p>
                   </div>
                 </a>
               </article>

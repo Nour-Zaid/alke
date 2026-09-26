@@ -30,7 +30,7 @@ $orders = $conn->query("
     SELECT o.id,
            COALESCE(NULLIF(u.name, ''),  o.ship_name)  AS customer,
            COALESCE(NULLIF(u.email, ''), o.ship_email) AS email,
-           o.payment_method,
+           o.payment_method, o.payment_proof,
            o.total_price, o.status, o.created_at,
            COUNT(oi.id) AS item_count
     FROM orders o
@@ -122,9 +122,18 @@ include __DIR__ . '/includes/header.php';
                   <span style="color:#aaa;">—</span>
                 <?php endif; ?>
               </td>
-              <td><strong>$<?= number_format($total, 2) ?></strong></td>
+              <td><strong>JD <?= number_format($total, 2) ?></strong></td>
               <td style="white-space:nowrap; color:#555;">
                 <?= htmlspecialchars($paymentLabels[$row['payment_method']] ?? ($row['payment_method'] ?: '—')) ?>
+                <?php if ($row['payment_method'] === 'cliq'): ?>
+                  <?php if (!empty($row['payment_proof'])): ?>
+                    <a href="/alke/assets/<?= htmlspecialchars($row['payment_proof']) ?>" target="_blank" rel="noopener"
+                       onclick="event.stopPropagation();"
+                       style="display:inline-block; margin-top:3px; font-size:0.78rem; color:#1e8f4e; font-weight:600;">📎 View proof</a>
+                  <?php else: ?>
+                    <span style="display:inline-block; margin-top:3px; font-size:0.78rem; color:#c0392b;">Awaiting proof</span>
+                  <?php endif; ?>
+                <?php endif; ?>
               </td>
               <td>
                 <span class="badge badge-<?= htmlspecialchars($row['status']) ?>">
@@ -184,10 +193,10 @@ include __DIR__ . '/includes/header.php';
                             <?= (int)$item['quantity'] ?>
                           </td>
                           <td style="padding:8px 10px; text-align:right; color:#555;">
-                            $<?= number_format((float)$item['price'], 2) ?>
+                            JD <?= number_format((float)$item['price'], 2) ?>
                           </td>
                           <td style="padding:8px 10px; text-align:right; font-weight:600;">
-                            $<?= number_format((float)$item['subtotal'], 2) ?>
+                            JD <?= number_format((float)$item['subtotal'], 2) ?>
                           </td>
                         </tr>
                       <?php endforeach; ?>
@@ -196,7 +205,7 @@ include __DIR__ . '/includes/header.php';
                       <tr style="border-top:2px solid #dee2e6;">
                         <td colspan="3" style="padding:8px 10px; text-align:right; font-weight:600; color:#555;">Order Total:</td>
                         <td style="padding:8px 10px; text-align:right; font-weight:700; font-size:1rem;">
-                          $<?= number_format($total, 2) ?>
+                          JD <?= number_format($total, 2) ?>
                         </td>
                       </tr>
                     </tfoot>

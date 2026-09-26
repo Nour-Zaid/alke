@@ -95,7 +95,7 @@ include __DIR__ . '/includes/header.php';
           <span class="badge badge-<?= htmlspecialchars($order['status']) ?>"><?= htmlspecialchars($order['status']) ?></span>
           <span style="color:#888; font-size:0.82rem;"><?= date('F j, Y \a\t g:i A', strtotime($order['created_at'])) ?></span>
         </div>
-        <span style="font-weight:700; font-size:1rem;">$<?= number_format((float)$order['total_price'], 2) ?></span>
+        <span style="font-weight:700; font-size:1rem;">JD <?= number_format((float)$order['total_price'], 2) ?></span>
       </div>
 
       <?php if (!empty($items)): ?>
@@ -112,9 +112,9 @@ include __DIR__ . '/includes/header.php';
             <?php foreach ($items as $item): ?>
               <tr>
                 <td><?= htmlspecialchars($item['product_name']) ?></td>
-                <td>$<?= number_format((float)$item['price'], 2) ?></td>
+                <td>JD <?= number_format((float)$item['price'], 2) ?></td>
                 <td><?= (int)$item['quantity'] ?></td>
-                <td>$<?= number_format((float)$item['price'] * (int)$item['quantity'], 2) ?></td>
+                <td>JD <?= number_format((float)$item['price'] * (int)$item['quantity'], 2) ?></td>
               </tr>
             <?php endforeach; ?>
           </tbody>

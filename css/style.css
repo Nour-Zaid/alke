@@ -1219,6 +1219,29 @@ a.checkout-secondary-btn:focus { color: #ffffff !important; }
   margin: 8px 0 !important;
 }
 
+/* CLIQ payment-proof upload */
+.proof-form {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px dashed var(--accent-border);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: flex-start;
+}
+.proof-form label { font-size: .9rem; }
+.proof-form input[type="file"] { font-size: .85rem; }
+.proof-message { margin-top: 12px; font-weight: 600; }
+.proof-message.is-ok    { color: #1e8f4e; }
+.proof-message.is-error { color: #c0392b; }
+.proof-uploaded { margin-top: 14px; }
+.proof-thumb {
+  margin-top: 10px;
+  max-width: 220px;
+  border-radius: var(--r-sm);
+  border: 1px solid var(--border);
+}
+
 .checkout-success {
   background: var(--white);
   border: 1px solid var(--border);

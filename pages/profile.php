@@ -203,7 +203,7 @@ if (is_array($user)) {
                 <?php $orderId = (int)$order['id']; ?>
                 <div class="checkout-summary-item profile-order-item profile-order-block profile-order-minimal">
                   <p><strong>Order ID:</strong> #<?php echo $orderId; ?></p>
-                  <p><strong>Total:</strong> $<?php echo number_format((float)$order['total_price'], 2); ?></p>
+                  <p><strong>Total:</strong> JD <?php echo number_format((float)$order['total_price'], 2); ?></p>
                   <p><strong>Status:</strong> <?php echo htmlspecialchars((string)$order['status']); ?></p>
                   <p><strong>Date:</strong> <?php echo htmlspecialchars((string)$order['created_at']); ?></p>
 
@@ -214,7 +214,7 @@ if (is_array($user)) {
                         <p class="profile-order-item-line">
                           - <?php echo htmlspecialchars((string)$item['name']); ?>
                           (Qty: <?php echo (int)$item['quantity']; ?>)
-                          @ $<?php echo number_format((float)$item['price'], 2); ?>
+                          @ JD <?php echo number_format((float)$item['price'], 2); ?>
                         </p>
                       <?php endforeach; ?>
                     </div>

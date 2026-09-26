@@ -10,6 +10,8 @@ $totalProducts = (int)$conn->query("SELECT COUNT(*) FROM products")->fetch_row()
 $totalOrders   = (int)$conn->query("SELECT COUNT(*) FROM orders")->fetch_row()[0];
 $totalRevenue  = (float)$conn->query("SELECT COALESCE(SUM(total_price),0) FROM orders")->fetch_row()[0];
 $totalUsers    = (int)$conn->query("SELECT COUNT(*) FROM users")->fetch_row()[0];
+$unitsInStock  = (int)$conn->query("SELECT COALESCE(SUM(stock),0) FROM products")->fetch_row()[0];
+$unitsSold     = (int)$conn->query("SELECT COALESCE(SUM(quantity),0) FROM order_items")->fetch_row()[0];
 
 // Recent 10 orders
 $recentOrders = $conn->query("
@@ -44,7 +46,17 @@ include __DIR__ . '/includes/header.php';
   <div class="stat-card">
     <div class="stat-icon">💰</div>
     <div class="stat-label">Total Revenue</div>
-    <div class="stat-value">$<?= number_format($totalRevenue, 2) ?></div>
+    <div class="stat-value">JD <?= number_format($totalRevenue, 2) ?></div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon">🏷️</div>
+    <div class="stat-label">Units in Stock</div>
+    <div class="stat-value"><?= $unitsInStock ?></div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon">✅</div>
+    <div class="stat-label">Units Sold</div>
+    <div class="stat-value"><?= $unitsSold ?></div>
   </div>
   <div class="stat-card">
     <div class="stat-icon">👤</div>
@@ -75,7 +87,7 @@ include __DIR__ . '/includes/header.php';
           <tr>
             <td><strong>#<?= (int)$row['id'] ?></strong></td>
             <td><?= htmlspecialchars($row['customer']) ?></td>
-            <td>$<?= number_format((float)$row['total_price'], 2) ?></td>
+            <td>JD <?= number_format((float)$row['total_price'], 2) ?></td>
             <td><span class="badge badge-<?= htmlspecialchars($row['status']) ?>"><?= htmlspecialchars($row['status']) ?></span></td>
             <td><?= date('M j, Y', strtotime($row['created_at'])) ?></td>
           </tr>

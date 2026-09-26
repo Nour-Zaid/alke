@@ -37,7 +37,7 @@ CREATE TABLE IF NOT EXISTS products (
 
 CREATE TABLE IF NOT EXISTS orders (
     id INT AUTO_INCREMENT PRIMARY KEY,
-    user_id INT NOT NULL,
+    user_id INT DEFAULT NULL,
     total_price DECIMAL(10,2) NOT NULL,
     status VARCHAR(50) NOT NULL,
     ship_name VARCHAR(150) DEFAULT NULL,
@@ -47,6 +47,8 @@ CREATE TABLE IF NOT EXISTS orders (
     ship_city VARCHAR(100) DEFAULT NULL,
     ship_country VARCHAR(100) DEFAULT NULL,
     ship_postal_code VARCHAR(30) DEFAULT NULL,
+    payment_method VARCHAR(30) DEFAULT NULL,
+    payment_proof VARCHAR(255) DEFAULT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT fk_orders_user
         FOREIGN KEY (user_id) REFERENCES users(id)

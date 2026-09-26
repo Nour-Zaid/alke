@@ -63,6 +63,46 @@ if ($orderId <= 0 || (!$isSessionOrder && !$isLoggedIn)) {
 
     $stmtOrder->close();
 }
+
+/* Handle CLIQ payment-proof screenshot upload */
+$proofMessage = '';
+$proofError   = false;
+if ($order && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['payment_proof'])) {
+    $allowed = ['image/jpeg' => 'jpg', 'image/png' => 'png', 'image/webp' => 'webp'];
+    $f = $_FILES['payment_proof'];
+
+    if (!function_exists('alke_csrf_check') || !alke_csrf_check()) {
+        $proofMessage = 'Your session expired. Please try again.'; $proofError = true;
+    } elseif (!$isSessionOrder && !$isLoggedIn) {
+        $proofMessage = 'You are not allowed to upload for this order.'; $proofError = true;
+    } elseif ($f['error'] !== UPLOAD_ERR_OK) {
+        $proofMessage = 'Upload failed. Please choose a file and try again.'; $proofError = true;
+    } elseif ($f['size'] > 5 * 1024 * 1024) {
+        $proofMessage = 'That image is too large (max 5 MB).'; $proofError = true;
+    } else {
+        $info = @getimagesize($f['tmp_name']);
+        $mime = $info['mime'] ?? '';
+        if (!isset($allowed[$mime])) {
+            $proofMessage = 'Please upload an image (JPG, PNG or WebP).'; $proofError = true;
+        } else {
+            $dir = __DIR__ . '/../assets/uploads/proofs';
+            if (!is_dir($dir)) { @mkdir($dir, 0775, true); }
+            $fname = 'order_' . (int)$order['id'] . '_' . bin2hex(random_bytes(6)) . '.' . $allowed[$mime];
+            if (move_uploaded_file($f['tmp_name'], $dir . '/' . $fname)) {
+                $rel = 'uploads/proofs/' . $fname;
+                $stmt = $conn->prepare("UPDATE orders SET payment_proof = ? WHERE id = ?");
+                $oid = (int)$order['id'];
+                $stmt->bind_param('si', $rel, $oid);
+                $stmt->execute();
+                $stmt->close();
+                $order['payment_proof'] = $rel;
+                $proofMessage = 'Payment screenshot received — thank you! We will confirm your order shortly.';
+            } else {
+                $proofMessage = 'Could not save the file. Please try again.'; $proofError = true;
+            }
+        }
+    }
+}
 ?>
 
 <main class="products-page">
@@ -98,12 +138,12 @@ if ($orderId <= 0 || (!$isSessionOrder && !$isLoggedIn)) {
                   <div>
                     <p class="checkout-item-name"><?php echo htmlspecialchars($item['name']); ?></p>
                     <p class="checkout-item-meta">
-                      Qty: <?php echo (int)$item['quantity']; ?> × $<?php echo number_format((float)$item['price'], 2); ?>
+                      Qty: <?php echo (int)$item['quantity']; ?> × JD <?php echo number_format((float)$item['price'], 2); ?>
                     </p>
                   </div>
                 </div>
                 <p class="checkout-item-subtotal">
-                  $<?php echo number_format(((float)$item['price']) * ((int)$item['quantity']), 2); ?>
+                  JD <?php echo number_format(((float)$item['price']) * ((int)$item['quantity']), 2); ?>
                 </p>
               </div>
             <?php endforeach; ?>
@@ -111,7 +151,7 @@ if ($orderId <= 0 || (!$isSessionOrder && !$isLoggedIn)) {
 
           <div class="checkout-total">
             <span>Total</span>
-            <strong>$<?php echo number_format((float)$order['total_price'], 2); ?></strong>
+            <strong>JD <?php echo number_format((float)$order['total_price'], 2); ?></strong>
           </div>
 
           <p class="checkout-review-payment">
@@ -122,13 +162,35 @@ if ($orderId <= 0 || (!$isSessionOrder && !$isLoggedIn)) {
           <?php if ($orderPayment === 'cliq'): ?>
             <div class="cliq-instructions">
               <h4>Complete your CLIQ payment</h4>
-              <p>Please send <strong>$<?php echo number_format((float)$order['total_price'], 2); ?></strong> via CLIQ to:</p>
+              <p>Please send <strong>JD <?php echo number_format((float)$order['total_price'], 2); ?></strong> via CLIQ to:</p>
               <p class="cliq-alias"><?php echo htmlspecialchars($cliqAlias); ?></p>
               <p>Use <strong>Order #<?php echo (int)$order['id']; ?></strong> as the payment reference. Your order will be processed once payment is confirmed.</p>
+
+              <?php if (!empty($proofMessage)): ?>
+                <p class="proof-message <?php echo $proofError ? 'is-error' : 'is-ok'; ?>">
+                  <?php echo htmlspecialchars($proofMessage); ?>
+                </p>
+              <?php endif; ?>
+
+              <?php if (!empty($order['payment_proof'])): ?>
+                <div class="proof-uploaded">
+                  <p><strong>✓ Screenshot uploaded.</strong> We'll verify your payment and confirm the order.</p>
+                  <a href="/alke/assets/<?php echo htmlspecialchars($order['payment_proof']); ?>" target="_blank" rel="noopener">
+                    <img src="/alke/assets/<?php echo htmlspecialchars($order['payment_proof']); ?>" alt="Your payment screenshot" class="proof-thumb">
+                  </a>
+                </div>
+              <?php else: ?>
+                <form method="POST" action="/alke/pages/order_success.php?id=<?php echo (int)$order['id']; ?>" enctype="multipart/form-data" class="proof-form">
+                  <?php echo alke_csrf_field(); ?>
+                  <label for="paymentProof"><strong>Upload your CLIQ payment screenshot</strong> so we can confirm it:</label>
+                  <input type="file" id="paymentProof" name="payment_proof" accept="image/png,image/jpeg,image/webp" required>
+                  <button type="submit" class="btn">Upload Screenshot</button>
+                </form>
+              <?php endif; ?>
             </div>
           <?php else: ?>
             <div class="cliq-instructions cod-note">
-              <p>You chose <strong>Cash on Delivery</strong> — please have <strong>$<?php echo number_format((float)$order['total_price'], 2); ?></strong> ready when your order arrives.</p>
+              <p>You chose <strong>Cash on Delivery</strong> — please have <strong>JD <?php echo number_format((float)$order['total_price'], 2); ?></strong> ready when your order arrives.</p>
             </div>
           <?php endif; ?>
 
