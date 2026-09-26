@@ -40,11 +40,28 @@
     const navToggle = document.getElementById('navToggle');
     const siteNav = document.getElementById('siteNav');
 
+    function closeSiteNav() {
+      if (siteNav && siteNav.classList.contains('open')) {
+        siteNav.classList.remove('open');
+        if (navToggle) navToggle.setAttribute('aria-expanded', 'false');
+      }
+    }
+
     if (navToggle && siteNav) {
       navToggle.addEventListener('click', function () {
         const expanded = navToggle.getAttribute('aria-expanded') === 'true';
         navToggle.setAttribute('aria-expanded', (!expanded).toString());
         siteNav.classList.toggle('open');
+      });
+
+      // Slide the menu back up as soon as the user scrolls — feels integrated.
+      window.addEventListener('scroll', closeSiteNav, { passive: true });
+      // Also close when tapping outside the header.
+      document.addEventListener('click', function (e) {
+        if (siteNav.classList.contains('open') &&
+            !e.target.closest('.site-nav') && !e.target.closest('#navToggle')) {
+          closeSiteNav();
+        }
       });
     }
 
