@@ -48,7 +48,6 @@ if ($catResult) {
         <?php foreach ($homeCategories as $cat): ?>
           <a href="/alke/pages/products.php?category=<?php echo (int)$cat['id']; ?>" class="category-card">
             <h3><?php echo alke_esc($cat['name']); ?></h3>
-            <p><?php echo (int)$cat['product_count']; ?> item<?php echo (int)$cat['product_count'] === 1 ? '' : 's'; ?></p>
           </a>
         <?php endforeach; ?>
       </div>

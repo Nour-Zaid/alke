@@ -1,8 +1,8 @@
 <footer class="site-footer">
     <div class="container footer-grid">
       <div>
-        <h3>Alke Clothes</h3>
-        <p>Modern premium fashion for everyday confidence.</p>
+        <h3>Alke</h3>
+        <p>Elevated everyday essentials — comfort, refined. Designed in Jordan.</p>
       </div>
 
       <div>

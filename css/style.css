@@ -1779,7 +1779,10 @@ a.cart-clear:hover, button.cart-clear:hover {
   gap: 18px;
 }
 .category-card {
-  display: block;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 128px;
   padding: 34px 24px;
   text-align: center;
   background: var(--soft-bg);
@@ -1796,14 +1799,14 @@ a.cart-clear:hover, button.cart-clear:hover {
 }
 .category-card h3 {
   color: var(--ink);
-  font-size: 1.05rem;
-  font-weight: 600;
-  margin-bottom: 6px;
+  font-size: 1.5rem;
+  font-weight: 700;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+  margin: 0;
+  transition: color .2s var(--ease);
 }
-.category-card p {
-  color: var(--muted);
-  font-size: .82rem;
-}
+.category-card:hover h3 { color: var(--accent-dark); }
 
 /* ── Breadcrumbs ────────────────────────────────────────────── */
 .breadcrumbs {
