@@ -1580,7 +1580,7 @@ a.cart-clear:hover, button.cart-clear:hover {
     flex-direction: column;
     align-items: flex-start;         /* links only as wide as their text */
     gap: 6px;
-    background: #111;
+    background: #000;                 /* pure matte black */
     max-height: 0;
     opacity: 0;
     overflow: hidden;
