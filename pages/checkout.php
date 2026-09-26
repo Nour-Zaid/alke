@@ -20,6 +20,9 @@ $paymentMethods = [
     'cliq' => 'Pay with CLIQ',
 ];
 
+/* CLIQ payee alias — replace with your real CLIQ alias/number before going live. */
+$cliqAlias = 'ALKESTORE';
+
 if (!isset($_SESSION['cart'])) {
     $_SESSION['cart'] = [];
 }
@@ -318,9 +321,16 @@ include '../includes/header.php';
                       <input type="radio" name="payment_method" value="cliq" <?php echo $chosenPayment === 'cliq' ? 'checked' : ''; ?>>
                       <span class="payment-option-body">
                         <span class="payment-option-title">📱 Pay with CLIQ</span>
-                        <span class="payment-option-desc">Send payment via CLIQ; details shown after you confirm.</span>
+                        <span class="payment-option-desc">Pay now via CLIQ using the details below.</span>
                       </span>
                     </label>
+                  </div>
+
+                  <div class="cliq-details" id="cliqDetails" style="<?php echo $chosenPayment === 'cliq' ? '' : 'display:none;'; ?>">
+                    <h4>Pay with CLIQ</h4>
+                    <p>Send <strong>JD <?php echo number_format((float)$totalPrice, 2); ?></strong> via CLIQ to:</p>
+                    <p class="cliq-alias"><?php echo htmlspecialchars($cliqAlias); ?></p>
+                    <p>After you place the order you'll be asked to upload a screenshot of the payment so we can confirm it.</p>
                   </div>
                 </div>
 
@@ -364,5 +374,17 @@ include '../includes/header.php';
     </div>
   </section>
 </main>
+
+<script>
+(function () {
+  var cliqBox = document.getElementById('cliqDetails');
+  if (!cliqBox) return;
+  document.querySelectorAll('input[name="payment_method"]').forEach(function (radio) {
+    radio.addEventListener('change', function () {
+      cliqBox.style.display = (this.value === 'cliq' && this.checked) ? '' : 'none';
+    });
+  });
+})();
+</script>
 
 <?php include '../includes/footer.php'; ?>
