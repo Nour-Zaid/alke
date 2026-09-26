@@ -5,11 +5,24 @@
  * (useful for Railway/Render/Docker), falling back to local XAMPP defaults.
  */
 
-$host     = getenv('DB_HOST')     ?: 'localhost';
-$user     = getenv('DB_USER')     ?: 'root';
-$password = getenv('DB_PASSWORD') !== false ? getenv('DB_PASSWORD') : '';
-$database = getenv('DB_NAME')     ?: 'alke_store';
-$port     = (int)(getenv('DB_PORT') ?: 3306);
+// Prefer a single connection URL if provided (e.g. Railway's MYSQL_URL /
+// MYSQL_PRIVATE_URL). Format: mysql://user:pass@host:port/dbname
+$dbUrl = getenv('MYSQL_URL') ?: getenv('MYSQL_PRIVATE_URL') ?: getenv('DATABASE_URL') ?: getenv('DB_URL') ?: '';
+
+if ($dbUrl !== '') {
+    $p        = parse_url($dbUrl);
+    $host     = $p['host'] ?? 'localhost';
+    $port     = (int)($p['port'] ?? 3306);
+    $user     = isset($p['user']) ? urldecode($p['user']) : 'root';
+    $password = isset($p['pass']) ? urldecode($p['pass']) : '';
+    $database = isset($p['path']) ? ltrim($p['path'], '/') : 'railway';
+} else {
+    $host     = getenv('DB_HOST')     ?: 'localhost';
+    $user     = getenv('DB_USER')     ?: 'root';
+    $password = getenv('DB_PASSWORD') !== false ? getenv('DB_PASSWORD') : '';
+    $database = getenv('DB_NAME')     ?: 'alke_store';
+    $port     = (int)(getenv('DB_PORT') ?: 3306);
+}
 
 mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
 
