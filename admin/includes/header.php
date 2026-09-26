@@ -36,6 +36,10 @@ if (!isset($activePage)) $activePage = '';
         <span class="nav-icon">👤</span>
         <span>Users</span>
       </a>
+      <a href="/alke/admin/messages.php" class="<?= $activePage === 'messages' ? 'active' : '' ?>">
+        <span class="nav-icon">✉️</span>
+        <span>Messages</span>
+      </a>
 
       <div class="sidebar-divider"></div>
 

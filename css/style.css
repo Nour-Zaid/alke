@@ -1247,7 +1247,12 @@ a.cart-clear:hover, button.cart-clear:hover {
 }
 .contact-info-item:hover { border-color: var(--accent-border); box-shadow: var(--shadow-sm); }
 .contact-info-item strong { color: var(--ink); }
-.contact-info-icon { font-size: 1.3rem; }
+.contact-info-icon {
+  width: 26px;
+  height: 26px;
+  flex-shrink: 0;
+  color: var(--ink);
+}
 
 /* ── Cookie notice ──────────────────────────────────────────── */
 .cookie-banner {
