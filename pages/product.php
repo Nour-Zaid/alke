@@ -99,7 +99,7 @@ if ($productId > 0) {
         ?>
 
         <nav class="breadcrumbs" aria-label="Breadcrumb">
-          <a href="/alke/index.php">Home</a>
+          <a href="/alke/">Home</a>
           <span>›</span>
           <a href="/alke/pages/products.php">Shop</a>
           <?php if (!empty($product['category_name'])): ?>

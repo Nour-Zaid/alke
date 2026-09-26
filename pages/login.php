@@ -4,7 +4,7 @@ include '../config/db.php';
 include '../includes/helpers.php';
 
 if (isset($_SESSION['user_id'])) {
-    header("Location: /alke/index.php");
+    header("Location: /alke/");
     exit();
 }
 
@@ -75,7 +75,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                             $_SESSION['user_email'] = (string)($user['email'] ?? '');
                             $_SESSION['user_phone'] = (string)($user['phone'] ?? '');
 
-                            $redirect = '/alke/index.php';
+                            $redirect = '/alke/';
                             if (!empty($_SESSION['redirect_after_login'])) {
                                 $redirect = $_SESSION['redirect_after_login'];
                                 unset($_SESSION['redirect_after_login']);

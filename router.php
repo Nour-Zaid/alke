@@ -12,7 +12,7 @@ $path = urldecode(parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?? '/'
 
 // Bare root -> send visitors into the app.
 if ($path === '' || $path === '/') {
-    header('Location: /alke/index.php');
+    header('Location: /alke/');
     exit;
 }
 

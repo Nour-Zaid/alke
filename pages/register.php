@@ -4,7 +4,7 @@ include '../config/db.php';
 include '../includes/helpers.php';
 
 if (isset($_SESSION['user_id'])) {
-    header("Location: /alke/index.php");
+    header("Location: /alke/");
     exit();
 }
 
@@ -79,7 +79,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                     $_SESSION['user_email'] = $email;
                     $_SESSION['user_phone'] = $phone;
 
-                    header("Location: /alke/index.php");
+                    header("Location: /alke/");
                     exit();
                 }
             } catch (mysqli_sql_exception $e) {

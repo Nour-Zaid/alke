@@ -55,12 +55,14 @@ if (!empty($_SESSION['cart'])) {
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="csrf-token" content="<?php echo alke_esc(alke_csrf_token()); ?>">
   <title>Alke Clothes</title>
+  <link rel="icon" type="image/png" href="/alke/assets/favicon.png">
+  <link rel="apple-touch-icon" href="/alke/assets/favicon.png">
   <link rel="stylesheet" href="/alke/css/style.css?v=4.1">
 </head>
 <body>
   <header class="site-header">
     <div class="container nav-wrap">
-      <a href="/alke/index.php" class="brand" aria-label="Alke Clothes Home">
+      <a href="/alke/" class="brand" aria-label="Alke Clothes Home">
         <img src="/alke/the symbol.jpeg" alt="Alke Clothes Logo" class="brand-logo">
         <span class="brand-text">Alke Clothes</span>
       </a>
@@ -70,7 +72,7 @@ if (!empty($_SESSION['cart'])) {
       </button>
 
       <nav class="site-nav" id="siteNav">
-        <a href="/alke/index.php">Home</a>
+        <a href="/alke/">Home</a>
         <a href="/alke/pages/products.php">Shop</a>
         <a href="/alke/pages/contact.php">Contact</a>
       </nav>
