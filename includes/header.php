@@ -55,7 +55,7 @@ if (!empty($_SESSION['cart'])) {
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="csrf-token" content="<?php echo alke_esc(alke_csrf_token()); ?>">
   <title>Alke Clothes</title>
-  <link rel="stylesheet" href="/alke/css/style.css?v=3.8">
+  <link rel="stylesheet" href="/alke/css/style.css?v=3.9">
 </head>
 <body>
   <header class="site-header">

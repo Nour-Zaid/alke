@@ -29,6 +29,13 @@
     </div>
   </footer>
 
+  <div class="cookie-banner" id="cookieBanner" role="dialog" aria-live="polite" aria-label="Cookie notice" hidden>
+    <p class="cookie-text">
+      We use essential cookies to keep your cart and checkout working. We don't use tracking or advertising cookies.
+    </p>
+    <button type="button" class="btn cookie-accept" id="cookieAccept">Got it</button>
+  </div>
+
   <script>
     const navToggle = document.getElementById('navToggle');
     const siteNav = document.getElementById('siteNav');
@@ -91,6 +98,25 @@
         selectedQtyInput.value = productQtySelect.value;
       });
     }
+
+    // Cookie notice — shown once, dismissal remembered in localStorage (no extra cookie set)
+    (function () {
+      var banner = document.getElementById('cookieBanner');
+      var accept = document.getElementById('cookieAccept');
+      if (!banner || !accept) return;
+      var KEY = 'alke_cookie_ack';
+      var acked = false;
+      try { acked = localStorage.getItem(KEY) === '1'; } catch (e) {}
+      if (!acked) {
+        banner.hidden = false;
+        requestAnimationFrame(function () { banner.classList.add('show'); });
+      }
+      accept.addEventListener('click', function () {
+        try { localStorage.setItem(KEY, '1'); } catch (e) {}
+        banner.classList.remove('show');
+        setTimeout(function () { banner.hidden = true; }, 300);
+      });
+    })();
   </script>
 </body>
 </html>
