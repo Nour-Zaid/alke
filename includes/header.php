@@ -52,13 +52,13 @@ if (!empty($_SESSION['cart'])) {
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <meta name="description" content="Alke — elevated everyday essentials. Premium 310 GSM fleece tracksuits and hoodies in Sand &amp; Black. Designed in Jordan.">
   <meta name="csrf-token" content="<?php echo alke_esc(alke_csrf_token()); ?>">
   <title>Alke Clothes</title>
   <link rel="icon" type="image/png" href="/alke/assets/favicon.png">
   <link rel="apple-touch-icon" href="/alke/assets/favicon.png">
-  <link rel="stylesheet" href="/alke/css/style.css?v=4.4">
+  <link rel="stylesheet" href="/alke/css/style.css?v=4.5">
 </head>
 <body>
   <header class="site-header">

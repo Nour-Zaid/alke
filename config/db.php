@@ -26,14 +26,31 @@ if ($dbUrl !== '') {
 
 mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
 
-try {
-    $conn = new mysqli($host, $user, $password, $database, $port);
-    $conn->set_charset('utf8mb4');
-} catch (mysqli_sql_exception $e) {
-    // Never leak credentials or internal errors to visitors.
-    error_log('DB connection failed: ' . $e->getMessage());
-    http_response_code(503);
-    die('We are having technical difficulties. Please try again shortly.');
+/*
+ * Retry the connection a few times. On hosts like Railway the private network
+ * (mysql.railway.internal) can take a moment to become reachable right after a
+ * cold start, which previously caused an intermittent "technical difficulties"
+ * message on the first page load. Retrying makes that first load succeed.
+ */
+$conn        = null;
+$maxAttempts = 5;
+for ($attempt = 1; $attempt <= $maxAttempts; $attempt++) {
+    try {
+        $conn = mysqli_init();
+        $conn->options(MYSQLI_OPT_CONNECT_TIMEOUT, 5);
+        $conn->real_connect($host, $user, $password, $database, $port);
+        $conn->set_charset('utf8mb4');
+        break; // connected
+    } catch (mysqli_sql_exception $e) {
+        $conn = null;
+        if ($attempt >= $maxAttempts) {
+            error_log('DB connection failed after ' . $attempt . ' attempts: ' . $e->getMessage());
+            http_response_code(503);
+            header('Retry-After: 2');
+            die('We are having technical difficulties. Please try again shortly.');
+        }
+        usleep(400000); // wait 0.4s, then retry
+    }
 }
 
 // Keep legacy (non-exception) behaviour for the rest of the codebase,
