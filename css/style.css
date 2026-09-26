@@ -75,6 +75,7 @@ body {
   color: var(--ink-2);
   background: var(--page-bg);
   line-height: 1.6;
+  overflow-x: hidden;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -1571,13 +1572,14 @@ a.cart-clear:hover, button.cart-clear:hover {
 
   .site-nav {
     order: 10;                       /* sits below brand / toggle / cart */
-    width: 100vw;                    /* full viewport width... */
-    margin-left: calc(50% - 50vw);   /* ...bled out past the container padding */
+    flex: 0 0 100vw;                 /* full viewport width, never shrink */
+    max-width: 100vw;
+    margin-left: calc(50% - 50vw);   /* bleed out past the container padding */
     box-sizing: border-box;
     display: flex;
     flex-direction: column;
-    align-items: stretch;
-    gap: 2px;
+    align-items: flex-start;         /* links only as wide as their text */
+    gap: 6px;
     background: #111;
     max-height: 0;
     opacity: 0;
@@ -1589,12 +1591,12 @@ a.cart-clear:hover, button.cart-clear:hover {
   .site-nav.open {
     max-height: 320px;
     opacity: 1;
-    padding: 10px 4vw 14px;
+    padding: 12px 4vw 16px;
   }
-  .site-nav a {
-    color: #fff;
-    width: 100%;
-    padding: 12px 0;
+  .site-nav a,
+  .site-nav a:hover {
+    color: #fff !important;          /* beat the light-header dark override */
+    padding: 8px 0;
   }
 
   .products-grid   { grid-template-columns: repeat(2, minmax(0,1fr)); }
