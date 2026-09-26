@@ -2,7 +2,7 @@
     <div class="container footer-grid">
       <div>
         <h3>Alke</h3>
-        <p>Elevated everyday essentials — comfort, refined. Designed in Jordan.</p>
+        <p>Elevated everyday essentials. Comfort, refined. Designed in Jordan.</p>
       </div>
 
       <div>

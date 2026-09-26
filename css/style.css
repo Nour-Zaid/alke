@@ -1782,8 +1782,8 @@ a.cart-clear:hover, button.cart-clear:hover {
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: 128px;
-  padding: 34px 24px;
+  min-height: 104px;
+  padding: 26px 24px;
   text-align: center;
   background: var(--soft-bg);
   border: 1px solid var(--border);
@@ -1799,9 +1799,9 @@ a.cart-clear:hover, button.cart-clear:hover {
 }
 .category-card h3 {
   color: var(--ink);
-  font-size: 1.5rem;
+  font-size: 1.15rem;
   font-weight: 700;
-  letter-spacing: .16em;
+  letter-spacing: .12em;
   text-transform: uppercase;
   margin: 0;
   transition: color .2s var(--ease);

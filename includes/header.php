@@ -58,7 +58,7 @@ if (!empty($_SESSION['cart'])) {
   <title>Alke Clothes</title>
   <link rel="icon" type="image/png" href="/alke/assets/favicon.png">
   <link rel="apple-touch-icon" href="/alke/assets/favicon.png">
-  <link rel="stylesheet" href="/alke/css/style.css?v=4.3">
+  <link rel="stylesheet" href="/alke/css/style.css?v=4.4">
 </head>
 <body>
   <header class="site-header">
