@@ -27,15 +27,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'updat
 
 /* ── Fetch all orders ───────────────────────────────── */
 $orders = $conn->query("
-    SELECT o.id, u.name AS customer, u.email,
+    SELECT o.id,
+           COALESCE(NULLIF(u.name, ''),  o.ship_name)  AS customer,
+           COALESCE(NULLIF(u.email, ''), o.ship_email) AS email,
+           o.payment_method,
            o.total_price, o.status, o.created_at,
            COUNT(oi.id) AS item_count
     FROM orders o
-    JOIN users u ON o.user_id = u.id
+    LEFT JOIN users u ON o.user_id = u.id
     LEFT JOIN order_items oi ON oi.order_id = o.id
     GROUP BY o.id
     ORDER BY o.created_at DESC
 ");
+
+$paymentLabels = ['cod' => 'Cash on Delivery', 'cliq' => 'CLIQ'];
 
 /* ── Fetch every item for every order in one query ──── */
 $allItems = [];
@@ -77,6 +82,7 @@ include __DIR__ . '/includes/header.php';
             <th>Email</th>
             <th>Items</th>
             <th>Total</th>
+            <th>Payment</th>
             <th>Status</th>
             <th>Date</th>
             <th>Update Status</th>
@@ -117,6 +123,9 @@ include __DIR__ . '/includes/header.php';
                 <?php endif; ?>
               </td>
               <td><strong>$<?= number_format($total, 2) ?></strong></td>
+              <td style="white-space:nowrap; color:#555;">
+                <?= htmlspecialchars($paymentLabels[$row['payment_method']] ?? ($row['payment_method'] ?: '—')) ?>
+              </td>
               <td>
                 <span class="badge badge-<?= htmlspecialchars($row['status']) ?>">
                   <?= htmlspecialchars($row['status']) ?>
@@ -144,7 +153,7 @@ include __DIR__ . '/includes/header.php';
             <!-- Expandable items detail row -->
             <?php if ($cnt > 0): ?>
             <tr class="order-detail-row" id="detail-<?= $oid ?>" style="display:none;">
-              <td colspan="9" style="padding:0; background:#f8fafc; border-bottom:2px solid #e2e8f0;">
+              <td colspan="10" style="padding:0; background:#f8fafc; border-bottom:2px solid #e2e8f0;">
                 <div style="padding:14px 20px 14px 48px;">
                   <table style="width:100%; border-collapse:collapse; font-size:0.875rem;">
                     <thead>

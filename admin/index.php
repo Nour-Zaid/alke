@@ -13,9 +13,10 @@ $totalUsers    = (int)$conn->query("SELECT COUNT(*) FROM users")->fetch_row()[0]
 
 // Recent 10 orders
 $recentOrders = $conn->query("
-    SELECT o.id, u.name AS customer, o.total_price, o.status, o.created_at
+    SELECT o.id, COALESCE(NULLIF(u.name, ''), o.ship_name) AS customer,
+           o.total_price, o.status, o.created_at
     FROM orders o
-    JOIN users u ON o.user_id = u.id
+    LEFT JOIN users u ON o.user_id = u.id
     ORDER BY o.created_at DESC
     LIMIT 10
 ");
