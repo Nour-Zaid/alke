@@ -18,9 +18,9 @@
 
       <div>
         <h4>Contact</h4>
-        <p>Email: hello@alkeclothes.com</p>
-        <p>Phone: +1 (555) 123-4567</p>
-        <p>City: New York, USA</p>
+        <p>Email: <a href="mailto:alkeclothingco@gmail.com">alkeclothingco@gmail.com</a></p>
+        <p>Phone: <a href="tel:+962777261388">+962 7 7726 1388</a></p>
+        <p>Instagram: <a href="https://instagram.com/alke.jo" target="_blank" rel="noopener">@alke.jo</a></p>
       </div>
     </div>
 

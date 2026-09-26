@@ -61,6 +61,21 @@ include '../includes/header.php';
         <p>Questions about an order or our products? We'd love to hear from you.</p>
       </div>
 
+      <div class="contact-info">
+        <a class="contact-info-item" href="mailto:alkeclothingco@gmail.com">
+          <span class="contact-info-icon">✉️</span>
+          <span><strong>Email</strong><br>alkeclothingco@gmail.com</span>
+        </a>
+        <a class="contact-info-item" href="tel:+962777261388">
+          <span class="contact-info-icon">📞</span>
+          <span><strong>Phone</strong><br>+962 7 7726 1388</span>
+        </a>
+        <a class="contact-info-item" href="https://instagram.com/alke.jo" target="_blank" rel="noopener">
+          <span class="contact-info-icon">📸</span>
+          <span><strong>Instagram</strong><br>@alke.jo</span>
+        </a>
+      </div>
+
       <?php if ($successMessage !== ''): ?>
         <div class="checkout-card" style="text-align:center;">
           <p style="margin-bottom: 1rem;"><?php echo alke_esc($successMessage); ?></p>

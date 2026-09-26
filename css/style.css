@@ -1191,6 +1191,63 @@ a.cart-clear:hover, button.cart-clear:hover {
   font-weight: 700;
 }
 
+/* Product material & care */
+.product-care {
+  margin-top: 22px;
+  padding-top: 18px;
+  border-top: 1px solid var(--border);
+}
+.product-care h3 {
+  font-size: .95rem;
+  font-weight: 700;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  color: var(--ink);
+  margin-bottom: 10px;
+}
+.product-care ul { list-style: none; padding: 0; margin: 0; }
+.product-care li {
+  position: relative;
+  padding-left: 18px;
+  margin-bottom: 6px;
+  font-size: .88rem;
+  color: var(--ink-2);
+}
+.product-care li::before {
+  content: '';
+  position: absolute;
+  left: 2px; top: .6em;
+  width: 5px; height: 5px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+/* Contact info cards */
+.contact-info {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  justify-content: center;
+  margin-bottom: 26px;
+}
+.contact-info-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 18px;
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow-xs);
+  font-size: .86rem;
+  color: var(--ink-2);
+  transition: border-color .18s var(--ease), box-shadow .18s var(--ease);
+  flex: 1 1 200px;
+}
+.contact-info-item:hover { border-color: var(--accent-border); box-shadow: var(--shadow-sm); }
+.contact-info-item strong { color: var(--ink); }
+.contact-info-icon { font-size: 1.3rem; }
+
 /* ── Cookie notice ──────────────────────────────────────────── */
 .cookie-banner {
   position: fixed;

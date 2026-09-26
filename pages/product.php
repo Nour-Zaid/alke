@@ -197,6 +197,16 @@ if ($productId > 0) {
                 <a href="/alke/pages/products.php" class="btn">Back to Shop</a>
               </div>
             </form>
+
+            <div class="product-care">
+              <h3>Material &amp; Care</h3>
+              <ul>
+                <li><strong>Material:</strong> Fleece — 310 GSM</li>
+                <li>Machine wash at 30°C</li>
+                <li>Steam ironing recommended to maintain the fabric's quality and appearance</li>
+                <li>Regular ironing is also acceptable if needed</li>
+              </ul>
+            </div>
           </div>
         </div>
 
