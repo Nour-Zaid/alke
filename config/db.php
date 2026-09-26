@@ -32,24 +32,27 @@ mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
  * cold start, which previously caused an intermittent "technical difficulties"
  * message on the first page load. Retrying makes that first load succeed.
  */
-$conn        = null;
-$maxAttempts = 5;
-for ($attempt = 1; $attempt <= $maxAttempts; $attempt++) {
+$conn = null;
+// Backing-off delays (ms) between attempts. Total ~16s of retrying, which
+// comfortably covers a sleeping app/db cold-starting on Railway.
+$delaysMs = [300, 600, 900, 1200, 1500, 2000, 2500, 3000, 3500];
+$attempts = count($delaysMs) + 1;
+for ($i = 0; $i < $attempts; $i++) {
     try {
         $conn = mysqli_init();
-        $conn->options(MYSQLI_OPT_CONNECT_TIMEOUT, 5);
+        $conn->options(MYSQLI_OPT_CONNECT_TIMEOUT, 4);
         $conn->real_connect($host, $user, $password, $database, $port);
         $conn->set_charset('utf8mb4');
         break; // connected
     } catch (mysqli_sql_exception $e) {
         $conn = null;
-        if ($attempt >= $maxAttempts) {
-            error_log('DB connection failed after ' . $attempt . ' attempts: ' . $e->getMessage());
+        if ($i >= $attempts - 1) {
+            error_log('DB connection failed after ' . $attempts . ' attempts: ' . $e->getMessage());
             http_response_code(503);
-            header('Retry-After: 2');
+            header('Retry-After: 3');
             die('We are having technical difficulties. Please try again shortly.');
         }
-        usleep(400000); // wait 0.4s, then retry
+        usleep($delaysMs[$i] * 1000);
     }
 }
 
