@@ -1565,38 +1565,20 @@ a.cart-clear:hover, button.cart-clear:hover {
 @media (max-width: 760px) {
   .nav-toggle { display: inline-block; }
 
-  /* Let the nav become a full-width second row inside the header so opening it
-     expands the (sticky) header and gently pushes the whole page down. */
-  .nav-wrap { flex-wrap: wrap; row-gap: 0; }
-
   .site-nav {
-    order: 10;              /* sits after brand / toggle / cart */
-    flex-basis: 100%;
-    width: 100%;
-    display: flex;
+    display: none;
+    position: absolute;
+    left: 4%; right: 4%;
+    top: 68px;
+    background: #111;
+    border: 1px solid rgba(255,255,255,.1);
+    border-radius: var(--r-sm);
+    padding: 14px 16px;
     flex-direction: column;
-    align-items: stretch;
-    gap: 0;
-    max-height: 0;
-    opacity: 0;
-    overflow: hidden;
-    padding: 0;
-    transition: max-height .32s var(--ease), opacity .25s var(--ease),
-                padding .32s var(--ease), margin-top .32s var(--ease);
+    align-items: flex-start;
+    gap: 14px;
   }
-  .site-nav.open {
-    max-height: 340px;
-    opacity: 1;
-    margin-top: 10px;
-    padding: 6px 0 12px;
-    border-top: 1px solid rgba(255,255,255,.08);
-  }
-  .site-nav a {
-    width: 100%;
-    padding: 13px 2px;
-    font-size: .92rem;
-  }
-  .site-nav a::after { display: none; } /* drop the underline animation on mobile list */
+  .site-nav.open { display: flex; }
 
   .products-grid   { grid-template-columns: repeat(2, minmax(0,1fr)); }
   .hero            { min-height: 62vh; }
