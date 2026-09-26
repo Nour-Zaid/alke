@@ -30,6 +30,7 @@ $orders = $conn->query("
     SELECT o.id,
            COALESCE(NULLIF(u.name, ''),  o.ship_name)  AS customer,
            COALESCE(NULLIF(u.email, ''), o.ship_email) AS email,
+           o.ship_phone, o.ship_address, o.ship_city, o.ship_country, o.ship_postal_code,
            o.payment_method, o.payment_proof,
            o.total_price, o.status, o.created_at,
            COUNT(oi.id) AS item_count
@@ -164,6 +165,30 @@ include __DIR__ . '/includes/header.php';
             <tr class="order-detail-row" id="detail-<?= $oid ?>" style="display:none;">
               <td colspan="10" style="padding:0; background:#f8fafc; border-bottom:2px solid #e2e8f0;">
                 <div style="padding:14px 20px 14px 48px;">
+                  <div style="display:flex; flex-wrap:wrap; gap:28px; margin-bottom:14px;">
+                    <div>
+                      <div style="font-weight:700; color:#334; margin-bottom:4px;">Customer</div>
+                      <div style="font-size:0.85rem; color:#555; line-height:1.7;">
+                        <?= htmlspecialchars($row['customer'] ?: '—') ?><br>
+                        <?php if (!empty($row['email'])): ?>✉️ <?= htmlspecialchars($row['email']) ?><br><?php endif; ?>
+                        <?php if (!empty($row['ship_phone'])): ?>📞 <?= htmlspecialchars($row['ship_phone']) ?><?php endif; ?>
+                      </div>
+                    </div>
+                    <div>
+                      <div style="font-weight:700; color:#334; margin-bottom:4px;">Shipping Address</div>
+                      <div style="font-size:0.85rem; color:#555; line-height:1.7;">
+                        <?php
+                          $addr = array_filter([
+                              $row['ship_address'] ?? '',
+                              $row['ship_city'] ?? '',
+                              $row['ship_postal_code'] ?? '',
+                              $row['ship_country'] ?? '',
+                          ]);
+                        ?>
+                        <?= $addr ? nl2br(htmlspecialchars(implode("\n", $addr))) : '<span style="color:#aaa;">No address on file</span>' ?>
+                      </div>
+                    </div>
+                  </div>
                   <table style="width:100%; border-collapse:collapse; font-size:0.875rem;">
                     <thead>
                       <tr style="border-bottom:1px solid #dee2e6; color:#555;">
