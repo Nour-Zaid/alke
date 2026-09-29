@@ -1248,6 +1248,19 @@ a.cart-clear:hover, button.cart-clear:hover {
   font-weight: 700;
 }
 
+/* Coupon apply row */
+.coupon-row { display: flex; gap: 8px; align-items: stretch; }
+.coupon-row input { flex: 1; }
+.coupon-apply-btn {
+  flex-shrink: 0;
+  padding: 0 22px;
+  margin: 0;
+  white-space: nowrap;
+}
+.coupon-msg { margin-top: 8px; font-size: .85rem; font-weight: 600; }
+.coupon-msg.is-ok    { color: #1e8f4e; }
+.coupon-msg.is-error { color: #c0392b; }
+
 /* Product material & care */
 .product-care {
   margin-top: 22px;

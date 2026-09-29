@@ -418,7 +418,11 @@ include '../includes/header.php';
 
                 <div class="checkout-field">
                   <label for="checkoutCoupon">Coupon code <span style="color:var(--muted); font-weight:400;">(optional)</span></label>
-                  <input type="text" id="checkoutCoupon" name="coupon_code" value="<?php echo alke_esc($fv['coupon']); ?>" placeholder="e.g. WELCOME10" autocapitalize="characters">
+                  <div class="coupon-row">
+                    <input type="text" id="checkoutCoupon" name="coupon_code" value="<?php echo alke_esc($fv['coupon']); ?>" placeholder="e.g. WELCOME10" autocapitalize="characters">
+                    <button type="button" id="applyCouponBtn" class="btn coupon-apply-btn">Apply</button>
+                  </div>
+                  <p class="coupon-msg" id="couponMsg" style="display:none;"></p>
                 </div>
 
                 <div class="checkout-actions">
@@ -445,9 +449,17 @@ include '../includes/header.php';
                 <?php endforeach; ?>
               </div>
 
+              <div class="checkout-total checkout-subtotal-row" id="summarySubtotalRow" style="display:none;">
+                <span>Subtotal</span>
+                <strong id="summarySubtotal">JD <?php echo number_format((float)$totalPrice, 2); ?></strong>
+              </div>
+              <div class="checkout-total coupon-discount-row" id="summaryDiscountRow" style="display:none; color:#1e8f4e;">
+                <span id="summaryDiscountLabel">Discount</span>
+                <strong id="summaryDiscount">− JD 0.00</strong>
+              </div>
               <div class="checkout-total">
                 <span>Total</span>
-                <strong>JD <?php echo number_format((float)$totalPrice, 2); ?></strong>
+                <strong id="summaryTotal" data-subtotal="<?php echo (float)$totalPrice; ?>">JD <?php echo number_format((float)$totalPrice, 2); ?></strong>
               </div>
             </div>
           </div>
@@ -465,12 +477,76 @@ include '../includes/header.php';
 <script>
 (function () {
   var cliqBox = document.getElementById('cliqDetails');
-  if (!cliqBox) return;
-  document.querySelectorAll('input[name="payment_method"]').forEach(function (radio) {
-    radio.addEventListener('change', function () {
-      cliqBox.style.display = (this.value === 'cliq' && this.checked) ? '' : 'none';
+  if (cliqBox) {
+    document.querySelectorAll('input[name="payment_method"]').forEach(function (radio) {
+      radio.addEventListener('change', function () {
+        cliqBox.style.display = (this.value === 'cliq' && this.checked) ? '' : 'none';
+      });
     });
-  });
+  }
+
+  // ── Coupon "Apply" (live preview) ──────────────────────────────
+  var btn   = document.getElementById('applyCouponBtn');
+  var input = document.getElementById('checkoutCoupon');
+  var msg   = document.getElementById('couponMsg');
+  var totalEl = document.getElementById('summaryTotal');
+  if (btn && input && totalEl) {
+    var subtotal = parseFloat(totalEl.dataset.subtotal) || 0;
+    var subRow  = document.getElementById('summarySubtotalRow');
+    var discRow = document.getElementById('summaryDiscountRow');
+    var fmt = function (n) { return 'JD ' + Number(n).toFixed(2); };
+
+    function resetSummary() {
+      if (subRow)  subRow.style.display  = 'none';
+      if (discRow) discRow.style.display = 'none';
+      totalEl.textContent = fmt(subtotal);
+    }
+
+    function apply() {
+      var code = input.value.trim();
+      var body = new URLSearchParams();
+      body.append('coupon_code', code);
+      body.append('csrf_token', (document.querySelector('meta[name="csrf-token"]') || {}).content || '');
+      var orig = btn.textContent;
+      btn.disabled = true; btn.textContent = '…';
+      fetch('/alke/pages/apply_coupon', { method: 'POST', body: body, headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+        .then(function (r) { return r.json(); })
+        .then(function (res) {
+          btn.disabled = false; btn.textContent = orig;
+          if (res.ok && res.discount > 0) {
+            msg.style.display = 'block';
+            msg.className = 'coupon-msg is-ok';
+            msg.textContent = '✓ ' + res.code + ' applied — you save ' + fmt(res.discount);
+            document.getElementById('summarySubtotal').textContent = fmt(res.subtotal);
+            document.getElementById('summaryDiscountLabel').textContent = 'Discount (' + res.code + ')';
+            document.getElementById('summaryDiscount').textContent = '− ' + fmt(res.discount);
+            if (subRow)  subRow.style.display  = '';
+            if (discRow) discRow.style.display = '';
+            totalEl.textContent = fmt(res.total);
+          } else if (code === '') {
+            msg.style.display = 'none';
+            resetSummary();
+          } else {
+            msg.style.display = 'block';
+            msg.className = 'coupon-msg is-error';
+            msg.textContent = res.message || 'Invalid coupon.';
+            resetSummary();
+          }
+        })
+        .catch(function () {
+          btn.disabled = false; btn.textContent = orig;
+          msg.style.display = 'block';
+          msg.className = 'coupon-msg is-error';
+          msg.textContent = 'Could not apply coupon. Please try again.';
+        });
+    }
+
+    btn.addEventListener('click', apply);
+    input.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') { e.preventDefault(); apply(); }
+    });
+    if (input.value.trim() !== '') { apply(); } // auto-apply a prefilled code
+  }
 })();
 </script>
 
