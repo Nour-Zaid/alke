@@ -85,5 +85,10 @@ $ext = strtolower(pathinfo($full, PATHINFO_EXTENSION));
 if (isset($mimes[$ext])) {
     header('Content-Type: ' . $mimes[$ext]);
 }
+// Let browsers cache static assets so repeat visits/navigations are instant.
+$cacheable = ['css','js','png','jpg','jpeg','gif','svg','webp','ico','woff','woff2','ttf'];
+if (in_array($ext, $cacheable, true)) {
+    header('Cache-Control: public, max-age=2592000'); // 30 days
+}
 readfile($full);
 return true;

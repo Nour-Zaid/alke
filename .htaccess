@@ -9,3 +9,10 @@ RewriteRule ^ - [L]
 # Clean URLs: map an extensionless request to its .php file when it exists
 RewriteCond %{REQUEST_FILENAME}.php -f
 RewriteRule ^(.+?)/?$ $1.php [L]
+
+# Cache static assets in the browser (repeat visits load instantly)
+<IfModule mod_headers.c>
+  <FilesMatch "\.(css|js|png|jpe?g|gif|svg|webp|ico|woff2?|ttf)$">
+    Header set Cache-Control "public, max-age=2592000"
+  </FilesMatch>
+</IfModule>
