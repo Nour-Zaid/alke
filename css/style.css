@@ -1343,6 +1343,17 @@ a.cart-clear:hover, button.cart-clear:hover {
 }
 .cliq-details h4 { margin-bottom: 6px; color: var(--ink); }
 .cliq-details p  { margin: 4px 0; }
+
+/* CLIQ "recipient name" reassurance note (checkout + confirmation) */
+.cliq-note {
+  background: rgba(255,255,255,.6);
+  border: 1px dashed var(--accent-border);
+  border-radius: var(--r-xs);
+  padding: 8px 10px;
+  font-size: .82rem;
+  line-height: 1.5;
+  color: var(--ink-2);
+}
 .payment-option-body { display: flex; flex-direction: column; gap: 2px; }
 .payment-option-title { font-weight: 600; color: var(--ink); }
 .payment-option-desc  { font-size: .82rem; color: var(--muted); }

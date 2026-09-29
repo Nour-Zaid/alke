@@ -11,8 +11,9 @@ $paymentMethods = [
     'cliq' => 'Pay with CLIQ',
 ];
 
-// CLIQ payee details — replace with your real CLIQ alias/number before going live.
-$cliqAlias = 'ALKESTORE';
+// CLIQ payee alias + the registered business name that appears to the sender.
+$cliqAlias        = 'Alke';
+$cliqBusinessName = 'Sharikat Rowad Al-Aqmisha for design &amp; manufacturing of embroidered clothing';
 
 // Access control for guest checkout: a visitor may only view the order they
 // just placed in this session. A logged-in user may view their own orders.
@@ -164,6 +165,7 @@ if ($order && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['payment_pr
               <h4>Complete your CLIQ payment</h4>
               <p>Please send <strong>JD <?php echo number_format((float)$order['total_price'], 2); ?></strong> via CLIQ to:</p>
               <p class="cliq-alias"><?php echo htmlspecialchars($cliqAlias); ?></p>
+              <p class="cliq-note">ℹ️ The name shown will be <strong><?php echo $cliqBusinessName; ?></strong> — this is Alke's registered business name, so you're sending to the right place.</p>
               <p>Use <strong>Order #<?php echo (int)$order['id']; ?></strong> as the payment reference. Your order will be processed once payment is confirmed.</p>
 
               <?php if (!empty($proofMessage)): ?>

@@ -20,8 +20,9 @@ $paymentMethods = [
     'cliq' => 'Pay with CLIQ',
 ];
 
-/* CLIQ payee alias — replace with your real CLIQ alias/number before going live. */
-$cliqAlias = 'ALKESTORE';
+/* CLIQ payee alias + the registered business name that appears to the sender. */
+$cliqAlias        = 'Alke';
+$cliqBusinessName = 'Sharikat Rowad Al-Aqmisha for design &amp; manufacturing of embroidered clothing';
 
 if (!isset($_SESSION['cart'])) {
     $_SESSION['cart'] = [];
@@ -330,6 +331,7 @@ include '../includes/header.php';
                     <h4>Pay with CLIQ</h4>
                     <p>Send <strong>JD <?php echo number_format((float)$totalPrice, 2); ?></strong> via CLIQ to:</p>
                     <p class="cliq-alias"><?php echo htmlspecialchars($cliqAlias); ?></p>
+                    <p class="cliq-note">ℹ️ The name shown will be <strong><?php echo $cliqBusinessName; ?></strong> — this is Alke's registered business name, so you're sending to the right place.</p>
                     <p>After you place the order you'll be asked to upload a screenshot of the payment so we can confirm it.</p>
                   </div>
                 </div>
