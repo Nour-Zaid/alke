@@ -7,6 +7,10 @@ FROM php:8.2-cli
 RUN docker-php-ext-install mysqli
 
 WORKDIR /app
+
+# Production PHP hardening (errors off, secure session cookies)
+COPY php-prod.ini /usr/local/etc/php/conf.d/zz-alke.ini
+
 COPY . /app
 
 # Railway injects $PORT; default to 8080 locally. router.php maps the app's

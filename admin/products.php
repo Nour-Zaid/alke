@@ -5,6 +5,8 @@ include __DIR__ . '/../config/db.php';
 $pageTitle  = 'Products';
 $activePage = 'products';
 
+admin_require_csrf(); // reject POST without a valid CSRF token
+
 $message     = '';
 $messageType = '';
 
@@ -40,23 +42,39 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } else {
             // Handle image upload
             if (!empty($_FILES['product_image']['name'])) {
-                $allowed = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
-                $ext = strtolower(pathinfo($_FILES['product_image']['name'], PATHINFO_EXTENSION));
+                // Validate by ACTUAL content (magic bytes), not the client-supplied
+                // name/extension. The stored extension is derived from the detected
+                // type, and the filename is always server-generated.
+                $mimeToExt = [
+                    'image/jpeg' => 'jpg',
+                    'image/png'  => 'png',
+                    'image/gif'  => 'gif',
+                    'image/webp' => 'webp',
+                ];
+                $file = $_FILES['product_image'];
 
-                if (!in_array($ext, $allowed)) {
-                    $message = 'Invalid image type. Use JPG, PNG, GIF or WEBP.';
+                if ($file['error'] !== UPLOAD_ERR_OK || !is_uploaded_file($file['tmp_name'])) {
+                    $message = 'Image upload failed. Please try again.';
                     $messageType = 'danger';
-                } elseif ($_FILES['product_image']['size'] > 5 * 1024 * 1024) {
+                } elseif ($file['size'] > 5 * 1024 * 1024) {
                     $message = 'Image must be under 5 MB.';
                     $messageType = 'danger';
                 } else {
-                    $newName = 'product_' . time() . '_' . rand(100, 999) . '.' . $ext;
-                    $dest    = __DIR__ . '/../assets/' . $newName;
-                    if (move_uploaded_file($_FILES['product_image']['tmp_name'], $dest)) {
-                        $imageName = $newName;
-                    } else {
-                        $message = 'Failed to save image. Check that the assets folder is writable.';
+                    $info = @getimagesize($file['tmp_name']);
+                    $mime = $info['mime'] ?? '';
+                    if (!isset($mimeToExt[$mime])) {
+                        $message = 'Invalid image. Use a real JPG, PNG, GIF or WEBP file.';
                         $messageType = 'danger';
+                    } else {
+                        $ext     = $mimeToExt[$mime];
+                        $newName = 'product_' . time() . '_' . bin2hex(random_bytes(4)) . '.' . $ext;
+                        $dest    = __DIR__ . '/../assets/' . $newName;
+                        if (move_uploaded_file($file['tmp_name'], $dest)) {
+                            $imageName = $newName;
+                        } else {
+                            $message = 'Failed to save image. Check that the assets folder is writable.';
+                            $messageType = 'danger';
+                        }
                     }
                 }
             }
@@ -166,6 +184,7 @@ include __DIR__ . '/includes/header.php';
   </div>
   <div class="admin-section-body">
     <form method="POST" enctype="multipart/form-data">
+      <?= alke_csrf_field() ?>
       <input type="hidden" name="action"         id="fAction"       value="<?= htmlspecialchars($fAction) ?>">
       <input type="hidden" name="product_id"     id="fProductId"    value="<?= $fProductId ?>">
       <input type="hidden" name="current_image"  id="fCurrentImage" value="<?= htmlspecialchars($fCurrentImage) ?>">
@@ -305,6 +324,7 @@ include __DIR__ . '/includes/header.php';
 
               <form method="POST" style="display:inline;"
                     onsubmit="return confirm('Delete &quot;<?= htmlspecialchars($p['name'], ENT_QUOTES) ?>&quot;? This cannot be undone.');">
+                <?= alke_csrf_field() ?>
                 <input type="hidden" name="action"     value="delete_product">
                 <input type="hidden" name="product_id" value="<?= (int)$p['id'] ?>">
                 <button type="submit" class="btn btn-sm btn-danger">Delete</button>

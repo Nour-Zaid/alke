@@ -1,7 +1,31 @@
 RewriteEngine On
 RewriteBase /alke/
 
-# Serve existing files and directories as-is
+# ── Security: block sensitive files from direct HTTP access ────────────────
+# Dotfiles / VCS / env (.git, .htaccess, .env, .dockerignore, ...)
+RedirectMatch 404 /\.(?!well-known)
+
+# Source / config / dump files
+<FilesMatch "\.(sql|toml|lock|md|log|sh|ya?ml|ini|bak|dist|dockerignore)$">
+  Require all denied
+</FilesMatch>
+<Files "Dockerfile">
+  Require all denied
+</Files>
+<Files "router.php">
+  Require all denied
+</Files>
+<Files "config.local.php">
+  Require all denied
+</Files>
+
+# Payment proofs are private — served only through the authenticated endpoint
+RedirectMatch 404 ^/alke/assets/uploads/
+
+# Internal include/config directories are never entry points
+RedirectMatch 404 ^/alke/(config|includes|admin/includes)/
+
+# ── Serve existing files and directories as-is ─────────────────────────────
 RewriteCond %{REQUEST_FILENAME} -f [OR]
 RewriteCond %{REQUEST_FILENAME} -d
 RewriteRule ^ - [L]
@@ -10,7 +34,7 @@ RewriteRule ^ - [L]
 RewriteCond %{REQUEST_FILENAME}.php -f
 RewriteRule ^(.+?)/?$ $1.php [L]
 
-# Cache static assets in the browser (repeat visits load instantly)
+# ── Browser caching for static assets ──────────────────────────────────────
 <IfModule mod_headers.c>
   <FilesMatch "\.(css|js|png|jpe?g|gif|svg|webp|ico|woff2?|ttf)$">
     Header set Cache-Control "public, max-age=2592000"

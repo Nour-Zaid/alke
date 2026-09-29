@@ -5,6 +5,8 @@ include __DIR__ . '/../config/db.php';
 $pageTitle  = 'Messages';
 $activePage = 'messages';
 
+admin_require_csrf(); // reject POST without a valid CSRF token
+
 $message     = '';
 $messageType = '';
 
@@ -75,6 +77,7 @@ $messages = $conn->query("
                 <a href="mailto:<?= htmlspecialchars($m['email']) ?>?subject=Re:%20<?= rawurlencode($m['subject'] ?? 'Your message to Alke') ?>"
                    class="btn btn-sm btn-outline">Reply</a>
                 <form method="POST" onsubmit="return confirm('Delete this message?');" style="margin:0;">
+                  <?= alke_csrf_field() ?>
                   <input type="hidden" name="action" value="delete">
                   <input type="hidden" name="id" value="<?= (int)$m['id'] ?>">
                   <button type="submit" class="btn btn-sm" style="background:#dc3545; color:#fff;">Delete</button>

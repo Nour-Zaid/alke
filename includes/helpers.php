@@ -103,5 +103,31 @@ if (!function_exists('alke_security_headers')) {
         header('X-Content-Type-Options: nosniff');
         header('X-Frame-Options: SAMEORIGIN');
         header('Referrer-Policy: strict-origin-when-cross-origin');
+        header('Permissions-Policy: geolocation=(), microphone=(), camera=(), payment=()');
+
+        // Content-Security-Policy. The app uses inline <style>/<script> and inline
+        // style="" attributes, plus Google Fonts — the policy below permits exactly
+        // those while blocking external/injected scripts, objects and framing.
+        header(
+            "Content-Security-Policy: " .
+            "default-src 'self'; " .
+            "base-uri 'self'; " .
+            "object-src 'none'; " .
+            "frame-ancestors 'self'; " .
+            "form-action 'self'; " .
+            "img-src 'self' data:; " .
+            "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " .
+            "font-src 'self' https://fonts.gstatic.com; " .
+            "script-src 'self' 'unsafe-inline'; " .
+            "connect-src 'self'"
+        );
+
+        // HSTS only when the request actually arrived over HTTPS (Railway proxy
+        // sets X-Forwarded-Proto). Never send it on plain-HTTP local dev.
+        $proto = $_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '';
+        $https = (!empty($_SERVER['HTTPS']) && strtolower($_SERVER['HTTPS']) !== 'off');
+        if ($proto === 'https' || $https) {
+            header('Strict-Transport-Security: max-age=31536000; includeSubDomains');
+        }
     }
 }

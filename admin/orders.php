@@ -5,6 +5,8 @@ include __DIR__ . '/../config/db.php';
 $pageTitle  = 'Orders';
 $activePage = 'orders';
 
+admin_require_csrf(); // reject POST without a valid CSRF token
+
 $message     = '';
 $messageType = '';
 
@@ -128,7 +130,7 @@ include __DIR__ . '/includes/header.php';
                 <?= htmlspecialchars($paymentLabels[$row['payment_method']] ?? ($row['payment_method'] ?: '—')) ?>
                 <?php if ($row['payment_method'] === 'cliq'): ?>
                   <?php if (!empty($row['payment_proof'])): ?>
-                    <a href="/alke/assets/<?= htmlspecialchars($row['payment_proof']) ?>" target="_blank" rel="noopener"
+                    <a href="/alke/pages/proof?order=<?= (int)$oid ?>" target="_blank" rel="noopener"
                        onclick="event.stopPropagation();"
                        style="display:inline-block; margin-top:3px; font-size:0.78rem; color:#1e8f4e; font-weight:600;">📎 View proof</a>
                   <?php else: ?>
@@ -146,6 +148,7 @@ include __DIR__ . '/includes/header.php';
               </td>
               <td data-label="Update" onclick="event.stopPropagation();">
                 <form method="POST" class="status-form">
+                  <?= alke_csrf_field() ?>
                   <input type="hidden" name="action"   value="update_status">
                   <input type="hidden" name="order_id" value="<?= $oid ?>">
                   <select name="status" class="form-control">

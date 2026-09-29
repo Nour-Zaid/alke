@@ -1,5 +1,7 @@
 # Ignore sensitive config overrides
 config/db.local.php
+admin/config.local.php
+test_db.php
 
 # OS
 .DS_Store

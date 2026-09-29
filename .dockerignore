@@ -1,0 +1,12 @@
+# Keep sensitive/dev files out of the production image
+.git
+.gitignore
+.htaccess
+.dockerignore
+*.sql
+*.md
+Dockerfile
+nixpacks.toml
+admin/config.local.php
+config/db.local.php
+test_db.php

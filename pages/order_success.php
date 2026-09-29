@@ -177,8 +177,8 @@ if ($order && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['payment_pr
               <?php if (!empty($order['payment_proof'])): ?>
                 <div class="proof-uploaded">
                   <p><strong>✓ Screenshot uploaded.</strong> We'll verify your payment and confirm the order.</p>
-                  <a href="/alke/assets/<?php echo htmlspecialchars($order['payment_proof']); ?>" target="_blank" rel="noopener">
-                    <img src="/alke/assets/<?php echo htmlspecialchars($order['payment_proof']); ?>" alt="Your payment screenshot" class="proof-thumb">
+                  <a href="/alke/pages/proof?order=<?php echo (int)$order['id']; ?>" target="_blank" rel="noopener">
+                    <img src="/alke/pages/proof?order=<?php echo (int)$order['id']; ?>" alt="Your payment screenshot" class="proof-thumb">
                   </a>
                 </div>
               <?php else: ?>

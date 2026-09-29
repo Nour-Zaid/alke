@@ -26,6 +26,28 @@ $docroot = __DIR__;
 $rel     = substr($path, strlen('/alke')); // keep leading slash, e.g. /css/style.css
 $base    = $docroot . $rel;
 
+// --- Security: block sensitive paths before touching the filesystem ---------
+
+// 1) Deny any dot-segment: .git, .htaccess, .env, .dockerignore, "..", etc.
+foreach (explode('/', $rel) as $seg) {
+    if ($seg !== '' && $seg[0] === '.') {
+        http_response_code(404);
+        exit('Not found');
+    }
+}
+
+// 2) Payment proofs are private — only the authenticated endpoint may serve them.
+if (strpos($rel, '/assets/uploads/') === 0) {
+    http_response_code(404);
+    exit('Not found');
+}
+
+// 3) Internal include directories are never entry points.
+if (strpos($rel, '/includes/') !== false || strpos($rel, '/config/') !== false) {
+    http_response_code(404);
+    exit('Not found');
+}
+
 // Resolve the request to a real file, staying inside the app directory.
 $full = null;
 $real = realpath($base);
@@ -50,6 +72,12 @@ if ($full === null) {
 }
 
 if ($full === null) {
+    http_response_code(404);
+    exit('Not found');
+}
+
+// Never expose/execute the router itself as a route.
+if (basename($full) === 'router.php') {
     http_response_code(404);
     exit('Not found');
 }
@@ -82,9 +110,13 @@ $mimes = [
     'pdf'  => 'application/pdf',
 ];
 $ext = strtolower(pathinfo($full, PATHINFO_EXTENSION));
-if (isset($mimes[$ext])) {
-    header('Content-Type: ' . $mimes[$ext]);
+// Allowlist: only known-safe static types are ever served. This blocks
+// source/config files (.sql, .toml, Dockerfile, .md, .ini, .lock, ...).
+if (!isset($mimes[$ext])) {
+    http_response_code(404);
+    exit('Not found');
 }
+header('Content-Type: ' . $mimes[$ext]);
 // Let browsers cache static assets so repeat visits/navigations are instant.
 $cacheable = ['css','js','png','jpg','jpeg','gif','svg','webp','ico','woff','woff2','ttf'];
 if (in_array($ext, $cacheable, true)) {
