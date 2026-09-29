@@ -150,9 +150,22 @@ if ($order && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['payment_pr
             <?php endforeach; ?>
           </div>
 
+          <?php
+            $orderDiscount = (float)($order['discount_amount'] ?? 0);
+            $orderTotal    = (float)$order['total_price'];
+          ?>
+          <?php if ($orderDiscount > 0): ?>
+            <p class="checkout-review-payment" style="border-top:none; padding-top:0;">
+              <span>Subtotal</span><strong>JD <?php echo number_format($orderTotal + $orderDiscount, 2); ?></strong>
+            </p>
+            <p class="checkout-review-payment" style="border-top:none; color:#1e8f4e;">
+              <span>Discount<?php echo !empty($order['coupon_code']) ? ' (' . htmlspecialchars($order['coupon_code']) . ')' : ''; ?></span>
+              <strong>− JD <?php echo number_format($orderDiscount, 2); ?></strong>
+            </p>
+          <?php endif; ?>
           <div class="checkout-total">
             <span>Total</span>
-            <strong>JD <?php echo number_format((float)$order['total_price'], 2); ?></strong>
+            <strong>JD <?php echo number_format($orderTotal, 2); ?></strong>
           </div>
 
           <p class="checkout-review-payment">

@@ -44,6 +44,54 @@ if (!function_exists('alke_csrf_check')) {
     }
 }
 
+/* ── Coupon validation (server-side, single source of truth) ─ */
+if (!function_exists('alke_validate_coupon')) {
+    /**
+     * Validate a coupon against a subtotal. Returns:
+     *   ['ok'=>bool, 'code'=>string, 'discount'=>float, 'message'=>string, 'coupon'=>?array]
+     * An empty code is "ok" with zero discount (coupons are optional).
+     * The discount is always recomputed here from the DB — never trusted from input.
+     */
+    function alke_validate_coupon(mysqli $conn, string $code, float $subtotal): array
+    {
+        $code = strtoupper(trim($code));
+        $fail = function (string $msg) use ($code) {
+            return ['ok' => false, 'code' => $code, 'discount' => 0.0, 'message' => $msg, 'coupon' => null];
+        };
+        if ($code === '') {
+            return ['ok' => true, 'code' => '', 'discount' => 0.0, 'message' => '', 'coupon' => null];
+        }
+
+        $stmt = $conn->prepare("SELECT * FROM coupons WHERE code = ? LIMIT 1");
+        if (!$stmt) {
+            return $fail('Could not validate coupon. Please try again.');
+        }
+        $stmt->bind_param('s', $code);
+        $stmt->execute();
+        $c = $stmt->get_result()->fetch_assoc();
+        $stmt->close();
+
+        if (!$c)                              { return $fail('Invalid coupon code.'); }
+        if ((int)$c['active'] !== 1)          { return $fail('This coupon is not active.'); }
+        if (!empty($c['expires_at']) && strtotime($c['expires_at'] . ' 23:59:59') < time()) {
+            return $fail('This coupon has expired.');
+        }
+        if ((int)$c['max_uses'] > 0 && (int)$c['used_count'] >= (int)$c['max_uses']) {
+            return $fail('This coupon has reached its usage limit.');
+        }
+        if ((float)$c['min_order'] > 0 && $subtotal < (float)$c['min_order']) {
+            return $fail('This coupon requires a minimum order of JD ' . number_format((float)$c['min_order'], 2) . '.');
+        }
+
+        $discount = ($c['type'] === 'percent')
+            ? $subtotal * ((float)$c['value'] / 100.0)
+            : (float)$c['value'];
+        $discount = round(min($discount, $subtotal), 2); // never exceed the subtotal
+
+        return ['ok' => true, 'code' => $code, 'discount' => $discount, 'message' => '', 'coupon' => $c];
+    }
+}
+
 /* ── Product image resolver (single source of truth) ──────── */
 if (!function_exists('alke_product_image')) {
     function alke_product_image($row): string

@@ -3,16 +3,33 @@ session_start();
 include '../config/db.php';
 include '../includes/helpers.php';
 
-/* Auto-migrate: add shipping + payment columns to orders if missing */
+/* Auto-migrate: add shipping + payment + discount columns to orders if missing */
 foreach (['ship_name' => 'VARCHAR(150)', 'ship_email' => 'VARCHAR(150)', 'ship_phone' => 'VARCHAR(40)',
           'ship_address' => 'VARCHAR(255)', 'ship_city' => 'VARCHAR(100)', 'ship_country' => 'VARCHAR(100)',
           'ship_postal_code' => 'VARCHAR(30)', 'payment_method' => 'VARCHAR(30)',
-          'payment_proof' => 'VARCHAR(255)'] as $col => $type) {
+          'payment_proof' => 'VARCHAR(255)', 'coupon_code' => 'VARCHAR(50)',
+          'discount_amount' => 'DECIMAL(10,2)'] as $col => $type) {
     $chk = $conn->query("SHOW COLUMNS FROM orders LIKE '$col'");
     if ($chk && $chk->num_rows === 0) {
         $conn->query("ALTER TABLE orders ADD COLUMN $col $type DEFAULT NULL");
     }
 }
+
+/* Ensure the coupons table exists (so coupon validation works everywhere). */
+$conn->query("
+    CREATE TABLE IF NOT EXISTS coupons (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        code VARCHAR(50) NOT NULL UNIQUE,
+        type ENUM('percent','fixed') NOT NULL DEFAULT 'percent',
+        value DECIMAL(10,2) NOT NULL DEFAULT 0,
+        min_order DECIMAL(10,2) NOT NULL DEFAULT 0,
+        max_uses INT NOT NULL DEFAULT 0,
+        used_count INT NOT NULL DEFAULT 0,
+        expires_at DATE DEFAULT NULL,
+        active TINYINT(1) NOT NULL DEFAULT 1,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+");
 
 /* Supported payment methods (value => label) */
 $paymentMethods = [
@@ -89,8 +106,11 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['place_order'])) {
     $country = isset($_POST['country']) ? trim($_POST['country']) : '';
     $postalCode = isset($_POST['postal_code']) ? trim($_POST['postal_code']) : '';
     $paymentMethod = isset($_POST['payment_method']) ? trim($_POST['payment_method']) : '';
+    $couponCode = isset($_POST['coupon_code']) ? trim($_POST['coupon_code']) : '';
 
     $_SESSION['user_phone'] = $phone;
+
+    $couponCheck = alke_validate_coupon($conn, $couponCode, (float)$totalPrice);
 
     if (!alke_csrf_check()) {
         $errorMessage = 'Your session expired. Please try again.';
@@ -102,8 +122,11 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['place_order'])) {
         $errorMessage = 'Please enter a valid email address.';
     } elseif (!isset($paymentMethods[$paymentMethod])) {
         $errorMessage = 'Please select a payment method.';
+    } elseif (!$couponCheck['ok']) {
+        $errorMessage = $couponCheck['message'];
     } else {
-        $_SESSION['pending_order'] = compact('name', 'email', 'phone', 'address', 'city', 'country', 'postalCode', 'paymentMethod');
+        $couponCode = $couponCheck['code']; // normalized (may be '')
+        $_SESSION['pending_order'] = compact('name', 'email', 'phone', 'address', 'city', 'country', 'postalCode', 'paymentMethod', 'couponCode');
         $orderPlaced = true;
     }
 }
@@ -145,18 +168,47 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['confirm_order'])) {
                 }
             }
 
-            /* 2. Insert order with shipping + payment details */
+            /* 2. Coupon: re-validate and atomically claim a use (single-use safe).
+                  The discount is always recomputed from the DB, never trusted. */
+            $discount    = 0.0;
+            $couponFinal = null;
+            $couponWanted = trim((string)($pending['couponCode'] ?? ''));
+            if ($couponWanted !== '') {
+                $cv = alke_validate_coupon($conn, $couponWanted, (float)$totalPrice);
+                if ($cv['ok'] && $cv['discount'] > 0) {
+                    $claim = $conn->prepare(
+                        "UPDATE coupons SET used_count = used_count + 1
+                         WHERE code = ? AND active = 1
+                           AND (max_uses = 0 OR used_count < max_uses)
+                           AND (expires_at IS NULL OR expires_at >= CURDATE())"
+                    );
+                    $claim->bind_param('s', $cv['code']);
+                    $claim->execute();
+                    if ($claim->affected_rows === 1) {
+                        $discount    = $cv['discount'];
+                        $couponFinal = $cv['code'];
+                    }
+                    $claim->close();
+                }
+            }
+            $finalTotal = round((float)$totalPrice - $discount, 2);
+            if ($finalTotal < 0) { $finalTotal = 0.0; }
+
+            /* 3. Insert order with shipping + payment + discount details */
             $stmtOrder = $conn->prepare("
                 INSERT INTO orders
-                    (user_id, total_price, status, payment_method, ship_name, ship_email, ship_phone, ship_address, ship_city, ship_country, ship_postal_code)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    (user_id, total_price, status, payment_method, coupon_code, discount_amount,
+                     ship_name, ship_email, ship_phone, ship_address, ship_city, ship_country, ship_postal_code)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ");
             $stmtOrder->bind_param(
-                "idsssssssss",
+                "idsssdsssssss",
                 $user_id,
-                $totalPrice,
+                $finalTotal,
                 $status,
                 $paymentMethod,
+                $couponFinal,
+                $discount,
                 $pending['name'],
                 $pending['email'],
                 $pending['phone'],
@@ -239,9 +291,23 @@ include '../includes/header.php';
             <?php endforeach; ?>
           </div>
 
+          <?php
+            $reviewCoupon   = alke_validate_coupon($conn, (string)($_SESSION['pending_order']['couponCode'] ?? ''), (float)$totalPrice);
+            $reviewDiscount = $reviewCoupon['ok'] ? $reviewCoupon['discount'] : 0.0;
+            $reviewFinal    = max(0, round((float)$totalPrice - $reviewDiscount, 2));
+          ?>
+          <?php if ($reviewDiscount > 0): ?>
+            <p class="checkout-review-payment" style="border-top:none; padding-top:0;">
+              <span>Subtotal</span><strong>JD <?php echo number_format((float)$totalPrice, 2); ?></strong>
+            </p>
+            <p class="checkout-review-payment" style="border-top:none; color:#1e8f4e;">
+              <span>Discount (<?php echo htmlspecialchars($reviewCoupon['code']); ?>)</span>
+              <strong>− JD <?php echo number_format($reviewDiscount, 2); ?></strong>
+            </p>
+          <?php endif; ?>
           <div class="checkout-total">
             <span>Total</span>
-            <strong>JD <?php echo number_format((float)$totalPrice, 2); ?></strong>
+            <strong>JD <?php echo number_format($reviewFinal, 2); ?></strong>
           </div>
 
           <?php $reviewPayment = $_SESSION['pending_order']['paymentMethod'] ?? 'cod'; ?>
@@ -281,6 +347,7 @@ include '../includes/header.php';
                   'city'    => $_POST['city']        ?? $pend['city']       ?? '',
                   'country' => $_POST['country']     ?? $pend['country']    ?? '',
                   'postal'  => $_POST['postal_code'] ?? $pend['postalCode'] ?? '',
+                  'coupon'  => $_POST['coupon_code'] ?? $pend['couponCode'] ?? '',
                 ];
               ?>
               <form method="POST" action="/alke/pages/checkout" class="checkout-form" novalidate>
@@ -347,6 +414,11 @@ include '../includes/header.php';
                     <p class="cliq-note">ℹ️ The name shown will be <strong><?php echo $cliqBusinessName; ?></strong> — this is Alke's registered business name, so you're sending to the right place.</p>
                     <p>After you place the order you'll be asked to upload a screenshot of the payment so we can confirm it.</p>
                   </div>
+                </div>
+
+                <div class="checkout-field">
+                  <label for="checkoutCoupon">Coupon code <span style="color:var(--muted); font-weight:400;">(optional)</span></label>
+                  <input type="text" id="checkoutCoupon" name="coupon_code" value="<?php echo alke_esc($fv['coupon']); ?>" placeholder="e.g. WELCOME10" autocapitalize="characters">
                 </div>
 
                 <div class="checkout-actions">

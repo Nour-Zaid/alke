@@ -49,6 +49,8 @@ CREATE TABLE IF NOT EXISTS orders (
     ship_postal_code VARCHAR(30) DEFAULT NULL,
     payment_method VARCHAR(30) DEFAULT NULL,
     payment_proof VARCHAR(255) DEFAULT NULL,
+    coupon_code VARCHAR(50) DEFAULT NULL,
+    discount_amount DECIMAL(10,2) DEFAULT 0,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT fk_orders_user
         FOREIGN KEY (user_id) REFERENCES users(id)
@@ -79,6 +81,19 @@ CREATE TABLE IF NOT EXISTS contact_messages (
     email VARCHAR(150) NOT NULL,
     subject VARCHAR(200) DEFAULT NULL,
     message TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS coupons (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    code VARCHAR(50) NOT NULL UNIQUE,
+    type ENUM('percent','fixed') NOT NULL DEFAULT 'percent',
+    value DECIMAL(10,2) NOT NULL DEFAULT 0,
+    min_order DECIMAL(10,2) NOT NULL DEFAULT 0,
+    max_uses INT NOT NULL DEFAULT 0,
+    used_count INT NOT NULL DEFAULT 0,
+    expires_at DATE DEFAULT NULL,
+    active TINYINT(1) NOT NULL DEFAULT 1,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 

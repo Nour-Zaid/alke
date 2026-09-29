@@ -32,6 +32,10 @@ if (!isset($activePage)) $activePage = '';
         <span class="nav-icon">📦</span>
         <span>Orders</span>
       </a>
+      <a href="/alke/admin/coupons" class="<?= $activePage === 'coupons' ? 'active' : '' ?>">
+        <span class="nav-icon">🏷️</span>
+        <span>Coupons</span>
+      </a>
       <a href="/alke/admin/users" class="<?= $activePage === 'users' ? 'active' : '' ?>">
         <span class="nav-icon">👤</span>
         <span>Users</span>

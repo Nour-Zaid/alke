@@ -33,7 +33,7 @@ $orders = $conn->query("
            COALESCE(NULLIF(u.name, ''),  o.ship_name)  AS customer,
            COALESCE(NULLIF(u.email, ''), o.ship_email) AS email,
            o.ship_phone, o.ship_address, o.ship_city, o.ship_country, o.ship_postal_code,
-           o.payment_method, o.payment_proof,
+           o.payment_method, o.payment_proof, o.coupon_code, o.discount_amount,
            o.total_price, o.status, o.created_at,
            COUNT(oi.id) AS item_count
     FROM orders o
@@ -230,6 +230,18 @@ include __DIR__ . '/includes/header.php';
                       <?php endforeach; ?>
                     </tbody>
                     <tfoot>
+                      <?php if ((float)($row['discount_amount'] ?? 0) > 0): ?>
+                      <tr>
+                        <td colspan="3" style="padding:6px 10px; text-align:right; color:#555;">Subtotal:</td>
+                        <td style="padding:6px 10px; text-align:right; color:#555;">JD <?= number_format($total + (float)$row['discount_amount'], 2) ?></td>
+                      </tr>
+                      <tr>
+                        <td colspan="3" style="padding:6px 10px; text-align:right; color:#1e8f4e;">
+                          Discount<?= !empty($row['coupon_code']) ? ' (' . htmlspecialchars($row['coupon_code']) . ')' : '' ?>:
+                        </td>
+                        <td style="padding:6px 10px; text-align:right; color:#1e8f4e;">− JD <?= number_format((float)$row['discount_amount'], 2) ?></td>
+                      </tr>
+                      <?php endif; ?>
                       <tr style="border-top:2px solid #dee2e6;">
                         <td colspan="3" style="padding:8px 10px; text-align:right; font-weight:600; color:#555;">Order Total:</td>
                         <td style="padding:8px 10px; text-align:right; font-weight:700; font-size:1rem;">
