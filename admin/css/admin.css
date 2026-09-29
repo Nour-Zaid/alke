@@ -6,6 +6,7 @@ body {
   color: #1a1a1a;
   font-size: 14px;
   line-height: 1.5;
+  touch-action: manipulation; /* no double-tap-to-zoom */
 }
 
 /* ── Layout ───────────────────────────────────────────── */
@@ -388,9 +389,51 @@ textarea.form-control { resize: vertical; }
   .topbar-user { display: none; }
   .admin-content { padding: 16px 14px; overflow-x: hidden; }
 
-  /* Wide tables scroll within their own section instead of the whole page */
-  .admin-section { overflow-x: auto; -webkit-overflow-scrolling: touch; }
-  .admin-table { min-width: 600px; }
+  /* Tables become stacked cards — readable without sideways scrolling */
+  .admin-section { overflow-x: visible; }
+  .admin-table { min-width: 0; display: block; }
+  .admin-table thead { display: none; }
+  .admin-table tbody { display: block; }
+  .admin-table > tbody > tr {
+    display: block;
+    background: #fff;
+    border: 1px solid #e6e8ec;
+    border-radius: 10px;
+    padding: 6px 12px;
+    margin-bottom: 12px;
+  }
+  .admin-table > tbody > tr:hover td { background: transparent; }
+  .admin-table > tbody > tr > td {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 14px;
+    padding: 8px 0;
+    border: none;
+    border-bottom: 1px solid #f2f3f5;
+    text-align: right;
+  }
+  .admin-table > tbody > tr > td:last-child { border-bottom: none; }
+  .admin-table > tbody > tr > td::before {
+    content: attr(data-label);
+    color: #8a8f98;
+    font-size: 0.74rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .03em;
+    text-align: left;
+    flex-shrink: 0;
+  }
+  .admin-table > tbody > tr > td:not([data-label])::before { display: none; }
+  .admin-table > tbody > tr > td:not([data-label]) { justify-content: flex-start; }
+
+  /* Order detail (expanded) row: keep it as a normal block, not a label row */
+  .admin-table > tbody > tr.order-detail-row > td { display: block; text-align: left; padding: 0; }
+  .admin-table > tbody > tr.order-detail-row { padding: 0; border: none; background: transparent; }
+
+  /* Inline selects/buttons inside a card cell shouldn't stretch oddly */
+  .admin-table .status-form { display: flex; gap: 8px; align-items: center; }
+  .admin-table .status-form .form-control { width: auto; }
 }
 @media (max-width: 540px) {
   .stats-row { grid-template-columns: 1fr 1fr; }

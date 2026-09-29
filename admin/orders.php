@@ -113,18 +113,18 @@ include __DIR__ . '/includes/header.php';
                 <?php endif; ?>
               </td>
 
-              <td><strong>#<?= $oid ?></strong></td>
-              <td><?= htmlspecialchars($row['customer']) ?></td>
-              <td style="color:#888;"><?= htmlspecialchars($row['email']) ?></td>
-              <td>
+              <td data-label="Order"><strong>#<?= $oid ?></strong></td>
+              <td data-label="Customer"><?= htmlspecialchars($row['customer']) ?></td>
+              <td data-label="Email" style="color:#888;"><?= htmlspecialchars($row['email']) ?></td>
+              <td data-label="Items">
                 <?php if ($cnt > 0): ?>
                   <span class="items-pill"><?= $cnt ?> <?= $cnt === 1 ? 'item' : 'items' ?></span>
                 <?php else: ?>
                   <span style="color:#aaa;">—</span>
                 <?php endif; ?>
               </td>
-              <td><strong>JD <?= number_format($total, 2) ?></strong></td>
-              <td style="white-space:nowrap; color:#555;">
+              <td data-label="Total"><strong>JD <?= number_format($total, 2) ?></strong></td>
+              <td data-label="Payment" style="white-space:nowrap; color:#555;">
                 <?= htmlspecialchars($paymentLabels[$row['payment_method']] ?? ($row['payment_method'] ?: '—')) ?>
                 <?php if ($row['payment_method'] === 'cliq'): ?>
                   <?php if (!empty($row['payment_proof'])): ?>
@@ -136,15 +136,15 @@ include __DIR__ . '/includes/header.php';
                   <?php endif; ?>
                 <?php endif; ?>
               </td>
-              <td>
+              <td data-label="Status">
                 <span class="badge badge-<?= htmlspecialchars($row['status']) ?>">
                   <?= htmlspecialchars($row['status']) ?>
                 </span>
               </td>
-              <td style="white-space:nowrap; color:#888;">
+              <td data-label="Date" style="white-space:nowrap; color:#888;">
                 <?= date('M j, Y', strtotime($row['created_at'])) ?>
               </td>
-              <td onclick="event.stopPropagation();">
+              <td data-label="Update" onclick="event.stopPropagation();">
                 <form method="POST" class="status-form">
                   <input type="hidden" name="action"   value="update_status">
                   <input type="hidden" name="order_id" value="<?= $oid ?>">

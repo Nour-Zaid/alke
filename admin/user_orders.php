@@ -111,10 +111,10 @@ include __DIR__ . '/includes/header.php';
           <tbody>
             <?php foreach ($items as $item): ?>
               <tr>
-                <td><?= htmlspecialchars($item['product_name']) ?></td>
-                <td>JD <?= number_format((float)$item['price'], 2) ?></td>
-                <td><?= (int)$item['quantity'] ?></td>
-                <td>JD <?= number_format((float)$item['price'] * (int)$item['quantity'], 2) ?></td>
+                <td data-label="Product"><?= htmlspecialchars($item['product_name']) ?></td>
+                <td data-label="Price">JD <?= number_format((float)$item['price'], 2) ?></td>
+                <td data-label="Qty"><?= (int)$item['quantity'] ?></td>
+                <td data-label="Subtotal">JD <?= number_format((float)$item['price'] * (int)$item['quantity'], 2) ?></td>
               </tr>
             <?php endforeach; ?>
           </tbody>

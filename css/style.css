@@ -82,6 +82,7 @@ body {
   background: var(--page-bg);
   line-height: 1.6;
   overflow-x: hidden;
+  touch-action: manipulation; /* no double-tap-to-zoom (works on Safari) */
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }

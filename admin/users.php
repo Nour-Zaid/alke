@@ -38,11 +38,11 @@ include __DIR__ . '/includes/header.php';
       <tbody>
         <?php while ($u = $users->fetch_assoc()): ?>
           <tr>
-            <td><?= (int)$u['id'] ?></td>
-            <td><?= htmlspecialchars($u['name']) ?></td>
-            <td style="color:#888;"><?= htmlspecialchars($u['email']) ?></td>
-            <td><?= (int)$u['order_count'] ?></td>
-            <td>JD <?= number_format((float)$u['total_spent'], 2) ?></td>
+            <td data-label="#"><?= (int)$u['id'] ?></td>
+            <td data-label="Name"><?= htmlspecialchars($u['name']) ?></td>
+            <td data-label="Email" style="color:#888;"><?= htmlspecialchars($u['email']) ?></td>
+            <td data-label="Orders"><?= (int)$u['order_count'] ?></td>
+            <td data-label="Total Spent">JD <?= number_format((float)$u['total_spent'], 2) ?></td>
             <td>
               <?php if ((int)$u['order_count'] > 0): ?>
                 <a href="/alke/admin/user_orders?id=<?= (int)$u['id'] ?>" class="btn btn-sm btn-outline">View Orders</a>

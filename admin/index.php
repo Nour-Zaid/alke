@@ -85,11 +85,11 @@ include __DIR__ . '/includes/header.php';
       <tbody>
         <?php while ($row = $recentOrders->fetch_assoc()): ?>
           <tr>
-            <td><strong>#<?= (int)$row['id'] ?></strong></td>
-            <td><?= htmlspecialchars($row['customer']) ?></td>
-            <td>JD <?= number_format((float)$row['total_price'], 2) ?></td>
-            <td><span class="badge badge-<?= htmlspecialchars($row['status']) ?>"><?= htmlspecialchars($row['status']) ?></span></td>
-            <td><?= date('M j, Y', strtotime($row['created_at'])) ?></td>
+            <td data-label="Order"><strong>#<?= (int)$row['id'] ?></strong></td>
+            <td data-label="Customer"><?= htmlspecialchars($row['customer']) ?></td>
+            <td data-label="Total">JD <?= number_format((float)$row['total_price'], 2) ?></td>
+            <td data-label="Status"><span class="badge badge-<?= htmlspecialchars($row['status']) ?>"><?= htmlspecialchars($row['status']) ?></span></td>
+            <td data-label="Date"><?= date('M j, Y', strtotime($row['created_at'])) ?></td>
           </tr>
         <?php endwhile; ?>
       </tbody>

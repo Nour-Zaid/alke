@@ -276,19 +276,19 @@ include __DIR__ . '/includes/header.php';
         ?>
           <tr>
             <td><img src="<?= htmlspecialchars($imgSrc) ?>" class="product-thumb" alt=""></td>
-            <td><?= (int)$p['id'] ?></td>
-            <td><?= htmlspecialchars($p['name']) ?></td>
-            <td><?= htmlspecialchars($p['category_name'] ?? '—') ?></td>
-            <td>JD <?= number_format((float)$p['price'], 2) ?></td>
-            <td>
+            <td data-label="ID"><?= (int)$p['id'] ?></td>
+            <td data-label="Name"><?= htmlspecialchars($p['name']) ?></td>
+            <td data-label="Category"><?= htmlspecialchars($p['category_name'] ?? '—') ?></td>
+            <td data-label="Price">JD <?= number_format((float)$p['price'], 2) ?></td>
+            <td data-label="Stock">
               <?php $s = (int)$p['stock']; ?>
               <span style="color: <?= $s === 0 ? '#dc3545' : ($s <= 5 ? '#d97706' : 'inherit') ?>; font-weight: <?= $s <= 5 ? 600 : 400 ?>;">
                 <?= $s ?>
               </span>
             </td>
-            <td style="font-size:0.78rem; color:#666; white-space:nowrap;"><?= htmlspecialchars($p['sizes']  ?? '') ?: '—' ?></td>
-            <td style="font-size:0.78rem; color:#666; white-space:nowrap;"><?= htmlspecialchars($p['colors'] ?? '') ?: '—' ?></td>
-            <td style="white-space:nowrap;">
+            <td data-label="Sizes" style="font-size:0.78rem; color:#666; white-space:nowrap;"><?= htmlspecialchars($p['sizes']  ?? '') ?: '—' ?></td>
+            <td data-label="Colors" style="font-size:0.78rem; color:#666; white-space:nowrap;"><?= htmlspecialchars($p['colors'] ?? '') ?: '—' ?></td>
+            <td data-label="" style="white-space:nowrap;">
               <button
                 type="button"
                 class="btn btn-sm btn-warning edit-btn"
