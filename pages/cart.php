@@ -72,17 +72,17 @@ if (!empty($_SESSION['cart'])) {
                       >
                     </a>
                   </td>
-                  <td><?php echo htmlspecialchars($item['name']); ?></td>
-                  <td class="item-price">JD <?php echo number_format((float)$item['price'], 2); ?></td>
-                  <td>
+                  <td class="cart-name-cell"><?php echo htmlspecialchars($item['name']); ?></td>
+                  <td class="item-price" data-label="Price">JD <?php echo number_format((float)$item['price'], 2); ?></td>
+                  <td data-label="Qty">
                     <div class="qty-control">
                       <button type="button" class="qty-btn js-qty-btn" data-direction="decrease">−</button>
                       <span class="qty-value"><?php echo (int)$item['quantity']; ?></span>
                       <button type="button" class="qty-btn js-qty-btn" data-direction="increase">+</button>
                     </div>
                   </td>
-                  <td class="item-subtotal">JD <?php echo number_format((float)$item['subtotal'], 2); ?></td>
-                  <td>
+                  <td class="item-subtotal" data-label="Subtotal">JD <?php echo number_format((float)$item['subtotal'], 2); ?></td>
+                  <td class="cart-action-cell">
                     <button type="button" class="btn product-btn js-remove-item">Remove</button>
                   </td>
                 </tr>

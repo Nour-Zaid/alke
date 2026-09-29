@@ -270,44 +270,57 @@ include '../includes/header.php';
               <h3 class="checkout-card-title">Customer Details</h3>
               <p class="checkout-card-subtitle">Enter your information to place the order. Fields marked <span class="req">*</span> are required.</p>
 
+              <?php
+                // Preserve whatever the customer already typed if validation failed.
+                $pend = $_SESSION['pending_order'] ?? [];
+                $fv = [
+                  'name'    => $_POST['name']        ?? $pend['name']       ?? $_SESSION['user_name']  ?? '',
+                  'email'   => $_POST['email']       ?? $pend['email']      ?? $_SESSION['user_email'] ?? '',
+                  'phone'   => $_POST['phone']       ?? $pend['phone']      ?? $_SESSION['user_phone'] ?? '',
+                  'address' => $_POST['address']     ?? $pend['address']    ?? '',
+                  'city'    => $_POST['city']        ?? $pend['city']       ?? '',
+                  'country' => $_POST['country']     ?? $pend['country']    ?? '',
+                  'postal'  => $_POST['postal_code'] ?? $pend['postalCode'] ?? '',
+                ];
+              ?>
               <form method="POST" action="/alke/pages/checkout.php" class="checkout-form" novalidate>
                 <?php echo alke_csrf_field(); ?>
                 <div class="checkout-field">
                   <label for="checkoutName">Name <span class="req">*</span></label>
-                  <input type="text" id="checkoutName" name="name" value="<?php echo isset($_SESSION['user_name']) ? htmlspecialchars($_SESSION['user_name']) : ''; ?>" required>
+                  <input type="text" id="checkoutName" name="name" value="<?php echo alke_esc($fv['name']); ?>" required>
                 </div>
 
                 <div class="checkout-field">
                   <label for="checkoutEmail">Email <span class="req">*</span></label>
-                  <input type="email" id="checkoutEmail" name="email" value="<?php echo isset($_SESSION['user_email']) ? alke_esc($_SESSION['user_email']) : ''; ?>" required>
+                  <input type="email" id="checkoutEmail" name="email" value="<?php echo alke_esc($fv['email']); ?>" required>
                 </div>
 
                 <div class="checkout-field">
                   <label for="checkoutPhone">Phone Number <span class="req">*</span></label>
-                  <input type="text" id="checkoutPhone" name="phone" value="<?php echo isset($_SESSION['user_phone']) ? htmlspecialchars($_SESSION['user_phone']) : ''; ?>" required>
+                  <input type="text" id="checkoutPhone" name="phone" value="<?php echo alke_esc($fv['phone']); ?>" required>
                 </div>
 
                 <div class="checkout-field">
                   <label for="checkoutAddress">Address <span class="req">*</span></label>
-                  <input type="text" id="checkoutAddress" name="address" required>
+                  <input type="text" id="checkoutAddress" name="address" value="<?php echo alke_esc($fv['address']); ?>" required>
                 </div>
 
                 <div class="checkout-field">
                   <label for="checkoutCity">City <span class="req">*</span></label>
-                  <input type="text" id="checkoutCity" name="city" required>
+                  <input type="text" id="checkoutCity" name="city" value="<?php echo alke_esc($fv['city']); ?>" required>
                 </div>
 
                 <div class="checkout-field">
                   <label for="checkoutCountry">Country <span class="req">*</span></label>
-                  <input type="text" id="checkoutCountry" name="country" required>
+                  <input type="text" id="checkoutCountry" name="country" value="<?php echo alke_esc($fv['country']); ?>" required>
                 </div>
 
                 <div class="checkout-field">
                   <label for="checkoutPostal">Postal Code <span class="req">*</span></label>
-                  <input type="text" id="checkoutPostal" name="postal_code" required>
+                  <input type="text" id="checkoutPostal" name="postal_code" value="<?php echo alke_esc($fv['postal']); ?>" required>
                 </div>
 
-                <?php $chosenPayment = $_SESSION['pending_order']['paymentMethod'] ?? ''; ?>
+                <?php $chosenPayment = $_POST['payment_method'] ?? $_SESSION['pending_order']['paymentMethod'] ?? ''; ?>
                 <div class="checkout-field">
                   <label>Payment Method <span class="req">*</span></label>
                   <div class="payment-options">

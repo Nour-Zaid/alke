@@ -348,11 +348,18 @@ textarea.form-control { resize: vertical; }
   .sidebar-nav a { justify-content: center; padding: 12px; border-left: none !important; }
   .sidebar-nav a.active { background: #1a1a1a; }
   .admin-main { margin-left: 56px; }
-  .admin-content { padding: 18px 16px; }
+  .admin-content { padding: 18px 14px; overflow-x: hidden; }
+
+  /* Keep the page fixed; let wide tables scroll inside their own section */
+  .admin-section { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .admin-table { min-width: 640px; }
+
+  .admin-topbar { flex-wrap: wrap; gap: 4px; }
+  .admin-topbar h1 { font-size: 1.2rem; }
 }
 @media (max-width: 540px) {
   .stats-row { grid-template-columns: 1fr 1fr; }
   .form-row-2, .form-row-3 { grid-template-columns: 1fr; }
-  .admin-table { font-size: 0.78rem; }
+  .admin-table { font-size: 0.8rem; }
   .admin-table th, .admin-table td { padding: 9px 10px; }
 }
