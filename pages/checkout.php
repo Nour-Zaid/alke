@@ -250,11 +250,11 @@ include '../includes/header.php';
             <strong><?php echo htmlspecialchars($paymentMethods[$reviewPayment] ?? 'Cash on Delivery'); ?></strong>
           </p>
 
-          <form method="POST" action="/alke/pages/checkout.php" class="checkout-actions" style="margin-top: 20px;">
+          <form method="POST" action="/alke/pages/checkout" class="checkout-actions" style="margin-top: 20px;">
             <input type="hidden" name="confirm_order" value="1">
             <?php echo alke_csrf_field(); ?>
             <button type="submit" class="btn">Confirm Order</button>
-            <a href="/alke/pages/checkout.php" class="btn checkout-secondary-btn">Edit Order</a>
+            <a href="/alke/pages/checkout" class="btn checkout-secondary-btn">Edit Order</a>
           </form>
         </div>
       <?php else: ?>
@@ -283,7 +283,7 @@ include '../includes/header.php';
                   'postal'  => $_POST['postal_code'] ?? $pend['postalCode'] ?? '',
                 ];
               ?>
-              <form method="POST" action="/alke/pages/checkout.php" class="checkout-form" novalidate>
+              <form method="POST" action="/alke/pages/checkout" class="checkout-form" novalidate>
                 <?php echo alke_csrf_field(); ?>
                 <div class="checkout-field">
                   <label for="checkoutName">Name <span class="req">*</span></label>
@@ -351,7 +351,7 @@ include '../includes/header.php';
 
                 <div class="checkout-actions">
                   <button type="submit" name="place_order" class="btn">Place Order</button>
-                  <a href="/alke/pages/cart.php" class="btn checkout-secondary-btn">Back to Cart</a>
+                  <a href="/alke/pages/cart" class="btn checkout-secondary-btn">Back to Cart</a>
                 </div>
               </form>
             </div>
@@ -382,7 +382,7 @@ include '../includes/header.php';
         <?php else: ?>
           <p class="no-products">Your cart is empty. Add products before checkout.</p>
           <div class="checkout-empty-action">
-            <a href="/alke/pages/products.php" class="btn">Go to Shop</a>
+            <a href="/alke/pages/products" class="btn">Go to Shop</a>
           </div>
         <?php endif; ?>
       <?php endif; ?>

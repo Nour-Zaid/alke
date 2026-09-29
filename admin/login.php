@@ -3,7 +3,7 @@ session_start();
 require_once __DIR__ . '/config.php';
 
 if (isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in'] === true) {
-    header('Location: /alke/admin/index.php');
+    header('Location: /alke/admin/index');
     exit;
 }
 
@@ -37,7 +37,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         unset($_SESSION['admin_login_attempts']);
         $_SESSION['admin_logged_in'] = true;
         $_SESSION['admin_user'] = $username;
-        header('Location: /alke/admin/index.php');
+        header('Location: /alke/admin/index');
         exit;
     } else {
         $error = 'Incorrect username or password.';

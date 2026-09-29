@@ -64,7 +64,7 @@ if (!empty($_SESSION['cart'])) {
               <?php foreach ($cartItems as $item): ?>
                 <tr class="cart-row" data-product-id="<?php echo (int)$item['id']; ?>" data-price="<?php echo (float)$item['price']; ?>">
                   <td>
-                    <a href="/alke/pages/product.php?id=<?php echo (int)$item['id']; ?>" class="cart-thumb-link" aria-label="View <?php echo htmlspecialchars($item['name']); ?> details">
+                    <a href="/alke/pages/product?id=<?php echo (int)$item['id']; ?>" class="cart-thumb-link" aria-label="View <?php echo htmlspecialchars($item['name']); ?> details">
                       <img
                         src="<?php echo htmlspecialchars($item['image_path']); ?>"
                         alt="<?php echo htmlspecialchars($item['name']); ?>"
@@ -96,14 +96,14 @@ if (!empty($_SESSION['cart'])) {
 
           <div class="cart-actions">
             <button type="button" id="clearCartBtn" class="btn btn-ghost cart-clear">Clear Cart</button>
-            <a href="/alke/pages/products.php" class="btn btn-ghost">Continue Shopping</a>
-            <a href="/alke/pages/checkout.php" class="btn cart-checkout-btn">Proceed to Checkout</a>
+            <a href="/alke/pages/products" class="btn btn-ghost">Continue Shopping</a>
+            <a href="/alke/pages/checkout" class="btn cart-checkout-btn">Proceed to Checkout</a>
           </div>
         </div>
       <?php else: ?>
         <p class="no-products">Your cart is empty. Add products from the shop page.</p>
         <div style="text-align:center; margin-top: 16px;">
-          <a href="/alke/pages/products.php" class="btn">Go to Shop</a>
+          <a href="/alke/pages/products" class="btn">Go to Shop</a>
         </div>
       <?php endif; ?>
     </div>
@@ -115,6 +115,7 @@ document.addEventListener('DOMContentLoaded', function () {
   const tableBody = document.getElementById('cartTableBody');
   const totalEl = document.getElementById('cartTotalText');
   const clearCartBtn = document.getElementById('clearCartBtn');
+  const qtyTimers = {}; // debounce server sync per product
 
   function postCart(action, productId, quantity) {
     const data = new FormData();
@@ -125,7 +126,7 @@ document.addEventListener('DOMContentLoaded', function () {
       data.append('quantity', quantity);
     }
 
-    return fetch('/alke/pages/update_cart.php', {
+    return fetch('/alke/pages/update_cart', {
       method: 'POST',
       body: data
     }).then(function (res) { return res.json(); });
@@ -181,40 +182,29 @@ document.addEventListener('DOMContentLoaded', function () {
         const direction = qtyBtn.getAttribute('data-direction');
         const newQty = direction === 'increase' ? currentQty + 1 : currentQty - 1;
 
-        postCart('update', productId, newQty)
-          .then(function (data) {
-            if (!data || !data.success) {
-              if (data && data.message && data.message.indexOf('adjusted') !== -1) {
-                window.location.reload();
-                return;
-              }
-              alert((data && data.message) || 'Could not update quantity.');
-              return;
-            }
+        // Optimistic UI — update instantly so it feels snappy on mobile.
+        if (newQty <= 0) {
+          row.remove();
+        } else {
+          qtyEl.textContent = String(newQty);
+          const subtotalCell = row.querySelector('.item-subtotal');
+          if (subtotalCell) subtotalCell.textContent = 'JD ' + (unitPrice * newQty).toFixed(2);
+        }
+        recalcTotal();
 
-            updateBadge(data.cart_count);
-            if (window.refreshMiniCart && data.mini_cart) {
-              window.refreshMiniCart(data.mini_cart);
-            }
-
-            if (newQty <= 0) {
-              row.remove();
-            } else {
-              qtyEl.textContent = String(newQty);
-              const subtotalCell = row.querySelector('.item-subtotal');
-              subtotalCell.textContent = 'JD ' + (unitPrice * newQty).toFixed(2);
-            }
-
-            if (!tableBody.querySelector('.cart-row')) {
-              window.location.reload();
-              return;
-            }
-
-            recalcTotal();
-          })
-          .catch(function () {
-            alert('Request failed. Please try again.');
-          });
+        // Debounced sync to the server (handles rapid taps, avoids races).
+        clearTimeout(qtyTimers[productId]);
+        qtyTimers[productId] = setTimeout(function () {
+          const finalQty = row.parentNode ? (parseInt(qtyEl.textContent, 10) || 0) : 0;
+          postCart('update', productId, finalQty)
+            .then(function (data) {
+              if (!data || !data.success) { window.location.reload(); return; }
+              updateBadge(data.cart_count);
+              if (window.refreshMiniCart && data.mini_cart) window.refreshMiniCart(data.mini_cart);
+              if (!tableBody.querySelector('.cart-row')) window.location.reload();
+            })
+            .catch(function () { window.location.reload(); });
+        }, 300);
       }
 
       if (removeBtn) {

@@ -8,35 +8,35 @@ if (!isset($activePage)) $activePage = '';
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title><?= htmlspecialchars($pageTitle) ?> — Alke Admin</title>
-  <link rel="stylesheet" href="/alke/admin/css/admin.css?v=2">
+  <link rel="stylesheet" href="/alke/admin/css/admin.css?v=3">
 </head>
 <body>
 <div class="admin-wrap">
 
   <aside class="admin-sidebar">
-    <a href="/alke/admin/index.php" class="sidebar-brand">
+    <a href="/alke/admin/index" class="sidebar-brand">
       Alke Clothes
       <small>Admin Panel</small>
     </a>
 
     <nav class="sidebar-nav">
-      <a href="/alke/admin/index.php" class="<?= $activePage === 'dashboard' ? 'active' : '' ?>">
+      <a href="/alke/admin/index" class="<?= $activePage === 'dashboard' ? 'active' : '' ?>">
         <span class="nav-icon">📊</span>
         <span>Dashboard</span>
       </a>
-      <a href="/alke/admin/products.php" class="<?= $activePage === 'products' ? 'active' : '' ?>">
+      <a href="/alke/admin/products" class="<?= $activePage === 'products' ? 'active' : '' ?>">
         <span class="nav-icon">👕</span>
         <span>Products</span>
       </a>
-      <a href="/alke/admin/orders.php" class="<?= $activePage === 'orders' ? 'active' : '' ?>">
+      <a href="/alke/admin/orders" class="<?= $activePage === 'orders' ? 'active' : '' ?>">
         <span class="nav-icon">📦</span>
         <span>Orders</span>
       </a>
-      <a href="/alke/admin/users.php" class="<?= $activePage === 'users' ? 'active' : '' ?>">
+      <a href="/alke/admin/users" class="<?= $activePage === 'users' ? 'active' : '' ?>">
         <span class="nav-icon">👤</span>
         <span>Users</span>
       </a>
-      <a href="/alke/admin/messages.php" class="<?= $activePage === 'messages' ? 'active' : '' ?>">
+      <a href="/alke/admin/messages" class="<?= $activePage === 'messages' ? 'active' : '' ?>">
         <span class="nav-icon">✉️</span>
         <span>Messages</span>
       </a>
@@ -44,7 +44,7 @@ if (!isset($activePage)) $activePage = '';
       <div class="sidebar-divider"></div>
 
       <div class="nav-logout">
-        <a href="/alke/admin/logout.php">
+        <a href="/alke/admin/logout">
           <span class="nav-icon">🚪</span>
           <span>Logout</span>
         </a>

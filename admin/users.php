@@ -45,7 +45,7 @@ include __DIR__ . '/includes/header.php';
             <td>JD <?= number_format((float)$u['total_spent'], 2) ?></td>
             <td>
               <?php if ((int)$u['order_count'] > 0): ?>
-                <a href="/alke/admin/user_orders.php?id=<?= (int)$u['id'] ?>" class="btn btn-sm btn-outline">View Orders</a>
+                <a href="/alke/admin/user_orders?id=<?= (int)$u['id'] ?>" class="btn btn-sm btn-outline">View Orders</a>
               <?php else: ?>
                 <span style="color:#ccc; font-size:0.8rem;">No orders</span>
               <?php endif; ?>

@@ -3,7 +3,7 @@ session_start();
 include '../config/db.php';
 
 if (!isset($_SESSION['user_id'])) {
-    header("Location: /alke/pages/login.php");
+    header("Location: /alke/pages/login");
     exit();
 }
 
@@ -102,7 +102,7 @@ include '../includes/header.php';
             </div>
 
             <div class="profile-actions-top">
-              <a href="/alke/pages/profile.php" class="btn profile-cancel-btn">Cancel</a>
+              <a href="/alke/pages/profile" class="btn profile-cancel-btn">Cancel</a>
               <button type="submit" class="btn profile-save-btn">Save</button>
             </div>
           </form>
@@ -141,7 +141,7 @@ document.addEventListener('DOMContentLoaded', function () {
     form.addEventListener('submit', function (e) {
       e.preventDefault();
 
-      fetch('/alke/pages/update_profile.php', {
+      fetch('/alke/pages/update_profile', {
         method: 'POST',
         body: new FormData(form)
       })
@@ -150,7 +150,7 @@ document.addEventListener('DOMContentLoaded', function () {
           if (data && data.success) {
             showToast(data.message || 'Profile updated successfully.', false);
             setTimeout(function () {
-              window.location.href = '/alke/pages/profile.php';
+              window.location.href = '/alke/pages/profile';
             }, 700);
           } else {
             showToast((data && data.message) ? data.message : 'Unable to update profile.', true);

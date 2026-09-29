@@ -63,9 +63,9 @@ include '../includes/header.php';
       <div class="checkout-card" style="text-align: center;">
         <p style="margin-bottom: 1.5rem;"><?php echo htmlspecialchars($message); ?></p>
         <?php if ($isSuccess): ?>
-          <a href="/alke/pages/login.php" class="btn">Go to Login</a>
+          <a href="/alke/pages/login" class="btn">Go to Login</a>
         <?php else: ?>
-          <a href="/alke/pages/resend_verification.php" class="btn checkout-secondary-btn">Resend Verification Email</a>
+          <a href="/alke/pages/resend_verification" class="btn checkout-secondary-btn">Resend Verification Email</a>
         <?php endif; ?>
       </div>
     </div>

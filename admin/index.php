@@ -69,7 +69,7 @@ include __DIR__ . '/includes/header.php';
 <div class="admin-section">
   <div class="admin-section-header">
     <h2>Recent Orders</h2>
-    <a href="/alke/admin/orders.php" class="btn btn-sm btn-outline">View All</a>
+    <a href="/alke/admin/orders" class="btn btn-sm btn-outline">View All</a>
   </div>
   <?php if ($recentOrders && $recentOrders->num_rows > 0): ?>
     <table class="admin-table">
@@ -104,7 +104,7 @@ include __DIR__ . '/includes/header.php';
 <div class="admin-section">
   <div class="admin-section-header">
     <h2>⚠️ Low Stock Products</h2>
-    <a href="/alke/admin/products.php" class="btn btn-sm btn-outline">Manage Products</a>
+    <a href="/alke/admin/products" class="btn btn-sm btn-outline">Manage Products</a>
   </div>
   <table class="admin-table">
     <thead>

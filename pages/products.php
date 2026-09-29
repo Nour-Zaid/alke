@@ -105,7 +105,7 @@ function alke_shop_url(array $overrides = []): string
         'page'     => $_GET['page']     ?? '',
     ], $overrides);
     $qs = array_filter($qs, fn($v) => $v !== '' && $v !== null && $v !== 0);
-    return '/alke/pages/products.php' . ($qs ? ('?' . http_build_query($qs)) : '');
+    return '/alke/pages/products' . ($qs ? ('?' . http_build_query($qs)) : '');
 }
 ?>
 
@@ -131,7 +131,7 @@ function alke_shop_url(array $overrides = []): string
           <?php endforeach; ?>
         </div>
 
-        <form class="shop-sort" method="GET" action="/alke/pages/products.php">
+        <form class="shop-sort" method="GET" action="/alke/pages/products">
           <?php if ($search !== ''): ?><input type="hidden" name="q" value="<?php echo alke_esc($search); ?>"><?php endif; ?>
           <?php if ($categoryId > 0): ?><input type="hidden" name="category" value="<?php echo (int)$categoryId; ?>"><?php endif; ?>
           <label for="sortSelect">Sort</label>
@@ -175,7 +175,7 @@ function alke_shop_url(array $overrides = []): string
 
               <div class="product-card-actions">
                 <?php if ($inStock): ?>
-                  <form method="POST" action="/alke/pages/products.php" class="add-to-cart-form" data-product-id="<?php echo (int)$row['id']; ?>">
+                  <form method="POST" action="/alke/pages/products" class="add-to-cart-form" data-product-id="<?php echo (int)$row['id']; ?>">
                     <input type="hidden" name="product_id" value="<?php echo (int)$row['id']; ?>">
                     <input type="hidden" name="quantity" value="1">
                     <button type="submit" name="add_to_cart" class="btn product-btn">Add to Cart</button>
@@ -215,7 +215,7 @@ function alke_shop_url(array $overrides = []): string
         <div class="no-products">
           <p>No products matched your search.</p>
           <div style="text-align:center; margin-top:16px;">
-            <a href="/alke/pages/products.php" class="btn">View All Products</a>
+            <a href="/alke/pages/products" class="btn">View All Products</a>
           </div>
         </div>
       <?php endif; ?>
@@ -278,7 +278,7 @@ document.addEventListener('DOMContentLoaded', function () {
       formData.append('quantity', '1');
       formData.append('csrf_token', csrfToken);
 
-      fetch('/alke/pages/update_cart.php', { method: 'POST', body: formData })
+      fetch('/alke/pages/update_cart', { method: 'POST', body: formData })
         .then(response => response.json())
         .then(data => {
           if (data && data.success) {

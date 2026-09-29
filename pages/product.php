@@ -31,7 +31,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_to_cart'])) {
         }
     }
 
-    header('Location: /alke/pages/product.php?id=' . $productIdPost . '&added=1');
+    header('Location: /alke/pages/product?id=' . $productIdPost . '&added=1');
     exit;
 }
 
@@ -101,10 +101,10 @@ if ($productId > 0) {
         <nav class="breadcrumbs" aria-label="Breadcrumb">
           <a href="/alke/">Home</a>
           <span>›</span>
-          <a href="/alke/pages/products.php">Shop</a>
+          <a href="/alke/pages/products">Shop</a>
           <?php if (!empty($product['category_name'])): ?>
             <span>›</span>
-            <a href="/alke/pages/products.php?category=<?php echo (int)$product['category_id']; ?>">
+            <a href="/alke/pages/products?category=<?php echo (int)$product['category_id']; ?>">
               <?php echo alke_esc($product['category_name']); ?>
             </a>
           <?php endif; ?>
@@ -114,7 +114,7 @@ if ($productId > 0) {
 
         <?php if ($justAdded): ?>
           <div class="checkout-alert success-alert">
-            <p>✓ Added to your cart. <a href="/alke/pages/cart.php">View cart</a></p>
+            <p>✓ Added to your cart. <a href="/alke/pages/cart">View cart</a></p>
           </div>
         <?php endif; ?>
 
@@ -151,7 +151,7 @@ if ($productId > 0) {
               </p>
             </div>
 
-            <form method="POST" action="/alke/pages/product.php?id=<?php echo (int)$product['id']; ?>" class="product-buy-form">
+            <form method="POST" action="/alke/pages/product?id=<?php echo (int)$product['id']; ?>" class="product-buy-form">
               <?php echo alke_csrf_field(); ?>
               <input type="hidden" name="product_id" value="<?php echo (int)$product['id']; ?>">
 
@@ -194,7 +194,7 @@ if ($productId > 0) {
                 <?php else: ?>
                   <button type="button" class="btn" disabled>Out of Stock</button>
                 <?php endif; ?>
-                <a href="/alke/pages/products.php" class="btn">Back to Shop</a>
+                <a href="/alke/pages/products" class="btn">Back to Shop</a>
               </div>
             </form>
 
@@ -217,7 +217,7 @@ if ($productId > 0) {
           <div class="products-grid">
             <?php foreach ($related as $rel): ?>
               <article class="product-card">
-                <a href="/alke/pages/product.php?id=<?php echo (int)$rel['id']; ?>" class="product-card-link">
+                <a href="/alke/pages/product?id=<?php echo (int)$rel['id']; ?>" class="product-card-link">
                   <div class="product-image-wrap">
                     <img
                       src="<?php echo alke_esc(alke_product_image($rel)); ?>"
@@ -242,7 +242,7 @@ if ($productId > 0) {
         <div class="no-products">
           <h2>Product not found</h2>
           <p>The product you are looking for does not exist or was removed.</p>
-          <a href="/alke/pages/products.php" class="btn">Go to Shop</a>
+          <a href="/alke/pages/products" class="btn">Go to Shop</a>
         </div>
       <?php endif; ?>
     </div>
@@ -279,7 +279,7 @@ if ($productId > 0) {
     btn.disabled = true;
     btn.textContent = 'Adding…';
 
-    fetch('/alke/pages/update_cart.php', {
+    fetch('/alke/pages/update_cart', {
       method: 'POST',
       body: data,
       headers: { 'X-Requested-With': 'XMLHttpRequest' }

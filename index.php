@@ -29,8 +29,8 @@ if ($catResult) {
         <h1>Comfort, refined.</h1>
         <p>Elevated everyday essentials in Sand &amp; Black. Heavyweight fleece, considered details, made to be lived in.</p>
         <div class="hero-actions">
-          <a href="/alke/pages/products.php" class="btn">Shop the Collection</a>
-          <a href="/alke/pages/products.php?category=2" class="btn hero-btn-ghost">Shop Sets</a>
+          <a href="/alke/pages/products" class="btn">Shop the Collection</a>
+          <a href="/alke/pages/products?category=2" class="btn hero-btn-ghost">Shop Sets</a>
         </div>
       </div>
     </div>
@@ -46,7 +46,7 @@ if ($catResult) {
 
       <div class="category-grid">
         <?php foreach ($homeCategories as $cat): ?>
-          <a href="/alke/pages/products.php?category=<?php echo (int)$cat['id']; ?>" class="category-card">
+          <a href="/alke/pages/products?category=<?php echo (int)$cat['id']; ?>" class="category-card">
             <h3><?php echo alke_esc($cat['name']); ?></h3>
           </a>
         <?php endforeach; ?>
@@ -66,7 +66,7 @@ if ($catResult) {
         <div class="products-grid">
           <?php while ($row = $featuredResult->fetch_assoc()): ?>
             <article class="product-card">
-              <a href="/alke/pages/product.php?id=<?php echo (int)$row['id']; ?>" class="product-card-link">
+              <a href="/alke/pages/product?id=<?php echo (int)$row['id']; ?>" class="product-card-link">
                 <div class="product-image-wrap">
                   <img
                     src="<?php echo alke_esc(alke_product_image($row)); ?>"
@@ -88,7 +88,7 @@ if ($catResult) {
         </div>
 
         <div style="text-align:center; margin-top:36px;">
-          <a href="/alke/pages/products.php" class="btn">View All Products</a>
+          <a href="/alke/pages/products" class="btn">View All Products</a>
         </div>
       <?php else: ?>
         <p class="no-products">No featured products available right now.</p>

@@ -87,7 +87,7 @@ include '../includes/header.php';
       <?php if ($successMessage !== ''): ?>
         <div class="checkout-card" style="text-align:center;">
           <p style="margin-bottom: 1rem;"><?php echo alke_esc($successMessage); ?></p>
-          <a href="/alke/pages/products.php" class="btn">Continue Shopping</a>
+          <a href="/alke/pages/products" class="btn">Continue Shopping</a>
         </div>
       <?php else: ?>
         <?php if ($errorMessage !== ''): ?>
@@ -97,7 +97,7 @@ include '../includes/header.php';
         <?php endif; ?>
 
         <div class="checkout-card">
-          <form method="POST" action="/alke/pages/contact.php" class="checkout-form">
+          <form method="POST" action="/alke/pages/contact" class="checkout-form">
             <?php echo alke_csrf_field(); ?>
 
             <div class="checkout-field">

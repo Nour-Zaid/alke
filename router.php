@@ -24,25 +24,32 @@ if (strpos($path, '/alke/') !== 0) {
 
 $docroot = __DIR__;
 $rel     = substr($path, strlen('/alke')); // keep leading slash, e.g. /css/style.css
-$full    = realpath($docroot . $rel);
+$base    = $docroot . $rel;
 
-// Reject anything resolving outside the app directory (path traversal).
-if ($full === false || strpos($full, $docroot) !== 0) {
-    http_response_code(404);
-    exit('Not found');
-}
-
-// Directory request -> serve its index.php if present.
-if (is_dir($full)) {
-    $candidate = rtrim($full, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . 'index.php';
-    if (!is_file($candidate)) {
-        http_response_code(404);
-        exit('Not found');
+// Resolve the request to a real file, staying inside the app directory.
+$full = null;
+$real = realpath($base);
+if ($real !== false && strpos($real, $docroot) === 0) {
+    if (is_dir($real)) {
+        // Directory -> its index.php
+        $idx = rtrim($real, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . 'index.php';
+        if (is_file($idx)) {
+            $full = $idx;
+        }
+    } elseif (is_file($real)) {
+        $full = $real;
     }
-    $full = $candidate;
 }
 
-if (!is_file($full)) {
+// Clean URLs: an extensionless request like /pages/products maps to products.php
+if ($full === null) {
+    $phpReal = realpath($base . '.php');
+    if ($phpReal !== false && strpos($phpReal, $docroot) === 0 && is_file($phpReal)) {
+        $full = $phpReal;
+    }
+}
+
+if ($full === null) {
     http_response_code(404);
     exit('Not found');
 }

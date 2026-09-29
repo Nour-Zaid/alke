@@ -5,7 +5,7 @@ include __DIR__ . '/../config/db.php';
 $userId = isset($_GET['id']) ? (int)$_GET['id'] : 0;
 
 if ($userId <= 0) {
-    header('Location: /alke/admin/users.php');
+    header('Location: /alke/admin/users');
     exit;
 }
 
@@ -17,7 +17,7 @@ $user = $stmt->get_result()->fetch_assoc();
 $stmt->close();
 
 if (!$user) {
-    header('Location: /alke/admin/users.php');
+    header('Location: /alke/admin/users');
     exit;
 }
 
@@ -62,7 +62,7 @@ include __DIR__ . '/includes/header.php';
 
 <!-- Back link + user summary -->
 <div style="margin-bottom: 20px;">
-  <a href="/alke/admin/users.php" class="btn btn-sm btn-outline">← Back to Users</a>
+  <a href="/alke/admin/users" class="btn btn-sm btn-outline">← Back to Users</a>
 </div>
 
 <div class="admin-section" style="margin-bottom: 24px;">

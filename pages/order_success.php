@@ -119,7 +119,7 @@ if ($order && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['payment_pr
           <p><?php echo htmlspecialchars($errorMessage); ?></p>
         </div>
         <div class="checkout-empty-action">
-          <a href="/alke/pages/products.php" class="btn">Go to Shop</a>
+          <a href="/alke/pages/products" class="btn">Go to Shop</a>
         </div>
       <?php else: ?>
         <?php
@@ -182,7 +182,7 @@ if ($order && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['payment_pr
                   </a>
                 </div>
               <?php else: ?>
-                <form method="POST" action="/alke/pages/order_success.php?id=<?php echo (int)$order['id']; ?>" enctype="multipart/form-data" class="proof-form">
+                <form method="POST" action="/alke/pages/order_success?id=<?php echo (int)$order['id']; ?>" enctype="multipart/form-data" class="proof-form">
                   <?php echo alke_csrf_field(); ?>
                   <label for="paymentProof"><strong>Upload your CLIQ payment screenshot</strong> so we can confirm it:</label>
                   <input type="file" id="paymentProof" name="payment_proof" accept="image/png,image/jpeg,image/webp" required>
@@ -197,7 +197,7 @@ if ($order && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['payment_pr
           <?php endif; ?>
 
           <div class="checkout-actions" style="margin-top: 20px;">
-            <a href="/alke/pages/products.php" class="btn">Continue Shopping</a>
+            <a href="/alke/pages/products" class="btn">Continue Shopping</a>
           </div>
         </div>
       <?php endif; ?>

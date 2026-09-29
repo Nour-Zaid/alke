@@ -58,7 +58,7 @@ if (!empty($_SESSION['cart'])) {
   <title>Alke Clothes</title>
   <link rel="icon" type="image/png" href="/alke/assets/favicon.png">
   <link rel="apple-touch-icon" href="/alke/assets/favicon.png">
-  <link rel="stylesheet" href="/alke/css/style.css?v=5.3">
+  <link rel="stylesheet" href="/alke/css/style.css?v=5.4">
 </head>
 <body>
   <header class="site-header">
@@ -74,11 +74,11 @@ if (!empty($_SESSION['cart'])) {
 
       <nav class="site-nav" id="siteNav">
         <a href="/alke/">Home</a>
-        <a href="/alke/pages/products.php">Shop</a>
-        <a href="/alke/pages/contact.php">Contact</a>
+        <a href="/alke/pages/products">Shop</a>
+        <a href="/alke/pages/contact">Contact</a>
       </nav>
 
-      <form class="nav-search" action="/alke/pages/products.php" method="GET" role="search">
+      <form class="nav-search" action="/alke/pages/products" method="GET" role="search">
         <input
           type="search"
           name="q"
@@ -110,11 +110,11 @@ if (!empty($_SESSION['cart'])) {
       <?php if (!empty($miniCartItems)): ?>
         <?php foreach ($miniCartItems as $item): ?>
           <div class="mini-cart-item">
-            <a href="/alke/pages/product.php?id=<?php echo (int)$item['id']; ?>" class="mini-cart-thumb-link" aria-label="View <?php echo htmlspecialchars($item['name']); ?> details">
+            <a href="/alke/pages/product?id=<?php echo (int)$item['id']; ?>" class="mini-cart-thumb-link" aria-label="View <?php echo htmlspecialchars($item['name']); ?> details">
               <img src="<?php echo htmlspecialchars($item['image']); ?>" alt="<?php echo htmlspecialchars($item['name']); ?>" class="mini-cart-thumb">
             </a>
             <div class="mini-cart-info">
-              <a href="/alke/pages/product.php?id=<?php echo (int)$item['id']; ?>" class="mini-cart-name-link">
+              <a href="/alke/pages/product?id=<?php echo (int)$item['id']; ?>" class="mini-cart-name-link">
                 <p class="mini-cart-name"><?php echo htmlspecialchars($item['name']); ?></p>
               </a>
               <p class="mini-cart-meta">Qty: <?php echo (int)$item['qty']; ?> • JD <?php echo number_format((float)$item['line_total'], 2); ?></p>
@@ -128,7 +128,7 @@ if (!empty($_SESSION['cart'])) {
 
     <div class="cart-drawer-footer">
       <p class="mini-cart-total">Total: JD <?php echo number_format((float)$miniCartTotal, 2); ?></p>
-      <a href="/alke/pages/cart.php" class="btn mini-cart-full-btn">Go to Full Cart</a>
+      <a href="/alke/pages/cart" class="btn mini-cart-full-btn">Go to Full Cart</a>
     </div>
   </aside>
   <div class="cart-drawer-overlay" id="cartDrawerOverlay"></div>
@@ -154,11 +154,11 @@ window.refreshMiniCart = function (miniCart) {
   var html = '';
   miniCart.items.forEach(function (item) {
     html += '<div class="mini-cart-item">'
-      + '<a href="/alke/pages/product.php?id=' + item.id + '" class="mini-cart-thumb-link">'
+      + '<a href="/alke/pages/product?id=' + item.id + '" class="mini-cart-thumb-link">'
       + '<img src="' + _esc(item.image) + '" alt="' + _esc(item.name) + '" class="mini-cart-thumb">'
       + '</a>'
       + '<div class="mini-cart-info">'
-      + '<a href="/alke/pages/product.php?id=' + item.id + '" class="mini-cart-name-link">'
+      + '<a href="/alke/pages/product?id=' + item.id + '" class="mini-cart-name-link">'
       + '<p class="mini-cart-name">' + _esc(item.name) + '</p>'
       + '</a>'
       + '<p class="mini-cart-meta">Qty: ' + item.qty + ' &bull; JD ' + item.line_total.toFixed(2) + '</p>'
