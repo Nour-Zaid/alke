@@ -133,6 +133,43 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $messageType = $ok ? 'success' : 'danger';
         }
     }
+
+    // ADD CATEGORY
+    if ($action === 'add_category') {
+        $catName = trim($_POST['category_name'] ?? '');
+        if ($catName === '' || mb_strlen($catName) > 100) {
+            $message = 'Category name is required (max 100 characters).';
+            $messageType = 'danger';
+        } else {
+            $dup = $conn->prepare("SELECT COUNT(*) FROM categories WHERE name = ?");
+            $dup->bind_param('s', $catName);
+            $dup->execute();
+            $exists = (int)$dup->get_result()->fetch_row()[0];
+            $dup->close();
+            if ($exists > 0) {
+                $message = "Category \"$catName\" already exists.";
+                $messageType = 'danger';
+            } else {
+                $stmt = $conn->prepare("INSERT INTO categories (name) VALUES (?)");
+                $stmt->bind_param('s', $catName);
+                $ok = $stmt->execute();
+                $stmt->close();
+                $message     = $ok ? "Category \"$catName\" added." : 'Could not add category.';
+                $messageType = $ok ? 'success' : 'danger';
+            }
+        }
+    }
+
+    // DELETE CATEGORY (products in it become uncategorized via ON DELETE SET NULL)
+    if ($action === 'delete_category') {
+        $catId = (int)($_POST['category_id'] ?? 0);
+        $stmt = $conn->prepare("DELETE FROM categories WHERE id = ?");
+        $stmt->bind_param('i', $catId);
+        $ok = $stmt->execute();
+        $stmt->close();
+        $message     = $ok ? 'Category deleted. Any products in it are now uncategorized.' : 'Could not delete category.';
+        $messageType = $ok ? 'success' : 'danger';
+    }
 }
 
 /* ── Form repopulation on validation error ──────────── */
@@ -162,6 +199,13 @@ if (!empty($message) && $messageType === 'danger' && $_SERVER['REQUEST_METHOD'] 
 
 /* ── Fetch data ─────────────────────────────────────── */
 $categories = $conn->query("SELECT id, name FROM categories ORDER BY name");
+$catList    = $conn->query("
+    SELECT c.id, c.name, COUNT(p.id) AS cnt
+    FROM categories c
+    LEFT JOIN products p ON p.category_id = c.id
+    GROUP BY c.id, c.name
+    ORDER BY c.name
+");
 $products   = $conn->query("
     SELECT p.*, c.name AS category_name
     FROM products p
@@ -175,6 +219,41 @@ include __DIR__ . '/includes/header.php';
 <?php if ($message): ?>
   <div class="alert alert-<?= $messageType ?>"><?= htmlspecialchars($message) ?></div>
 <?php endif; ?>
+
+<!-- Categories -->
+<div class="admin-section" style="margin-bottom:24px;">
+  <div class="admin-section-header"><h2>Categories</h2></div>
+  <div class="admin-section-body">
+    <form method="POST" style="display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-bottom:14px;">
+      <?= alke_csrf_field() ?>
+      <input type="hidden" name="action" value="add_category">
+      <input type="text" name="category_name" class="form-control" placeholder="New category name" required
+             maxlength="100" style="max-width:260px;">
+      <button type="submit" class="btn btn-sm">+ Add Category</button>
+    </form>
+
+    <?php if ($catList && $catList->num_rows > 0): ?>
+      <div style="display:flex; flex-wrap:wrap; gap:8px;">
+        <?php while ($cat = $catList->fetch_assoc()): ?>
+          <span style="display:inline-flex; align-items:center; gap:8px; background:#f1f3f5; border:1px solid #e2e5e9; border-radius:20px; padding:5px 6px 5px 14px; font-size:0.85rem;">
+            <?= htmlspecialchars($cat['name']) ?>
+            <span style="color:#999;">(<?= (int)$cat['cnt'] ?>)</span>
+            <form method="POST" style="display:inline; margin:0;"
+                  onsubmit="return confirm('Delete category &quot;<?= htmlspecialchars($cat['name'], ENT_QUOTES) ?>&quot;? Products in it become uncategorized.');">
+              <?= alke_csrf_field() ?>
+              <input type="hidden" name="action" value="delete_category">
+              <input type="hidden" name="category_id" value="<?= (int)$cat['id'] ?>">
+              <button type="submit" title="Delete category"
+                      style="border:none; background:#e03131; color:#fff; width:20px; height:20px; border-radius:50%; cursor:pointer; line-height:1; font-size:0.9rem;">×</button>
+            </form>
+          </span>
+        <?php endwhile; ?>
+      </div>
+    <?php else: ?>
+      <p class="empty-state" style="padding:8px 0;">No categories yet.</p>
+    <?php endif; ?>
+  </div>
+</div>
 
 <!-- Add / Edit form (hidden by default) -->
 <div class="admin-section" id="productFormPanel" style="display:none; margin-bottom: 24px;">

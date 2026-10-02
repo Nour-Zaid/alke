@@ -175,12 +175,6 @@ if ($order && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['payment_pr
 
           <?php if ($orderPayment === 'cliq'): ?>
             <div class="cliq-instructions">
-              <h4>Complete your CLIQ payment</h4>
-              <p>Please send <strong>JD <?php echo number_format((float)$order['total_price'], 2); ?></strong> via CLIQ to:</p>
-              <p class="cliq-alias"><?php echo htmlspecialchars($cliqAlias); ?></p>
-              <p class="cliq-note">ℹ️ The name shown will be <strong><?php echo $cliqBusinessName; ?></strong> — this is Alke's registered business name, so you're sending to the right place.</p>
-              <p>Use <strong>Order #<?php echo (int)$order['id']; ?></strong> as the payment reference. Your order will be processed once payment is confirmed.</p>
-
               <?php if (!empty($proofMessage)): ?>
                 <p class="proof-message <?php echo $proofError ? 'is-error' : 'is-ok'; ?>">
                   <?php echo htmlspecialchars($proofMessage); ?>
@@ -188,13 +182,19 @@ if ($order && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['payment_pr
               <?php endif; ?>
 
               <?php if (!empty($order['payment_proof'])): ?>
+                <h4>CLIQ payment received</h4>
+                <p>Thanks! We received your CLIQ payment screenshot for <strong>Order #<?php echo (int)$order['id']; ?></strong> and will confirm your order shortly.</p>
                 <div class="proof-uploaded">
-                  <p><strong>✓ Screenshot uploaded.</strong> We'll verify your payment and confirm the order.</p>
                   <a href="/alke/pages/proof?order=<?php echo (int)$order['id']; ?>" target="_blank" rel="noopener">
                     <img src="/alke/pages/proof?order=<?php echo (int)$order['id']; ?>" alt="Your payment screenshot" class="proof-thumb">
                   </a>
                 </div>
               <?php else: ?>
+                <h4>Complete your CLIQ payment</h4>
+                <p>Please send <strong>JD <?php echo number_format((float)$order['total_price'], 2); ?></strong> via CLIQ to:</p>
+                <p class="cliq-alias"><?php echo htmlspecialchars($cliqAlias); ?></p>
+                <p class="cliq-note">ℹ️ The name shown will be <strong><?php echo $cliqBusinessName; ?></strong> — this is Alke's registered business name, so you're sending to the right place.</p>
+                <p>Use <strong>Order #<?php echo (int)$order['id']; ?></strong> as the payment reference. Your order will be processed once payment is confirmed.</p>
                 <form method="POST" action="/alke/pages/order_success?id=<?php echo (int)$order['id']; ?>" enctype="multipart/form-data" class="proof-form">
                   <?php echo alke_csrf_field(); ?>
                   <label for="paymentProof"><strong>Upload your CLIQ payment screenshot</strong> so we can confirm it:</label>

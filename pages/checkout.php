@@ -113,6 +113,51 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['place_order'])) {
 
     $couponCheck = alke_validate_coupon($conn, $couponCode, (float)$totalPrice);
 
+    // CLIQ payment screenshot — uploaded with THIS form, before the order is placed.
+    // Persist it in the session so it survives the review step and validation retries
+    // (browsers don't re-populate file inputs when the user edits and resubmits).
+    $proofError = '';
+    $proofPath  = $_SESSION['pending_proof'] ?? null;
+    if ($paymentMethod === 'cliq') {
+        $f = $_FILES['payment_proof'] ?? null;
+        $hasNewFile = $f && isset($f['error']) && $f['error'] !== UPLOAD_ERR_NO_FILE;
+        if ($hasNewFile) {
+            $allowed = ['image/jpeg' => 'jpg', 'image/png' => 'png', 'image/webp' => 'webp'];
+            if ($f['error'] !== UPLOAD_ERR_OK || !is_uploaded_file($f['tmp_name'])) {
+                $proofError = 'Screenshot upload failed. Please try again.';
+            } elseif ($f['size'] > 5 * 1024 * 1024) {
+                $proofError = 'Screenshot must be under 5 MB.';
+            } else {
+                $info = @getimagesize($f['tmp_name']);
+                $mime = $info['mime'] ?? '';
+                if (!isset($allowed[$mime])) {
+                    $proofError = 'Please upload a JPG, PNG or WebP image.';
+                } else {
+                    $dir = __DIR__ . '/../assets/uploads/proofs';
+                    if (!is_dir($dir)) { @mkdir($dir, 0775, true); }
+                    $fname = 'pending_' . bin2hex(random_bytes(8)) . '.' . $allowed[$mime];
+                    if (move_uploaded_file($f['tmp_name'], $dir . '/' . $fname)) {
+                        // Drop a previously uploaded pending screenshot to avoid orphans.
+                        if ($proofPath && strpos($proofPath, 'uploads/proofs/pending_') === 0
+                            && is_file(__DIR__ . '/../assets/' . $proofPath)) {
+                            @unlink(__DIR__ . '/../assets/' . $proofPath);
+                        }
+                        $proofPath = 'uploads/proofs/' . $fname;
+                        $_SESSION['pending_proof'] = $proofPath;
+                    } else {
+                        $proofError = 'Could not save the screenshot. Please try again.';
+                    }
+                }
+            }
+        }
+        if ($proofError === '' && empty($proofPath)) {
+            $proofError = 'Please upload a screenshot of your CLIQ payment.';
+        }
+    } else {
+        // Cash on delivery (or any non-CLIQ method) needs no screenshot.
+        $proofPath = null;
+    }
+
     if (!alke_csrf_check()) {
         $errorMessage = 'Your session expired. Please try again.';
     } elseif (empty($cartItems)) {
@@ -123,11 +168,14 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['place_order'])) {
         $errorMessage = 'Please enter a valid email address.';
     } elseif (!isset($paymentMethods[$paymentMethod])) {
         $errorMessage = 'Please select a payment method.';
+    } elseif ($proofError !== '') {
+        $errorMessage = $proofError;
     } elseif (!$couponCheck['ok']) {
         $errorMessage = $couponCheck['message'];
     } else {
         $couponCode = $couponCheck['code']; // normalized (may be '')
         $_SESSION['pending_order'] = compact('name', 'email', 'phone', 'address', 'city', 'country', 'postalCode', 'paymentMethod', 'couponCode');
+        $_SESSION['pending_order']['proof'] = $proofPath;
         $orderPlaced = true;
     }
 }
@@ -195,19 +243,22 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['confirm_order'])) {
             $finalTotal = round((float)$totalPrice - $discount, 2);
             if ($finalTotal < 0) { $finalTotal = 0.0; }
 
-            /* 3. Insert order with shipping + payment + discount details */
+            /* 3. Insert order with shipping + payment + discount details.
+                  For CLIQ, the screenshot was already uploaded on the checkout form. */
+            $proofForOrder = ($paymentMethod === 'cliq') ? ($pending['proof'] ?? null) : null;
             $stmtOrder = $conn->prepare("
                 INSERT INTO orders
-                    (user_id, total_price, status, payment_method, coupon_code, discount_amount,
+                    (user_id, total_price, status, payment_method, payment_proof, coupon_code, discount_amount,
                      ship_name, ship_email, ship_phone, ship_address, ship_city, ship_country, ship_postal_code)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ");
             $stmtOrder->bind_param(
-                "idsssdsssssss",
+                "idssssdsssssss",
                 $user_id,
                 $finalTotal,
                 $status,
                 $paymentMethod,
+                $proofForOrder,
                 $couponFinal,
                 $discount,
                 $pending['name'],
@@ -269,7 +320,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['confirm_order'])) {
                 . '<table width="100%" style="border-collapse:collapse;font-size:14px;">' . $rows . '</table>'
                 . '<p style="margin-top:14px;">Payment method: <strong>' . htmlspecialchars($payLabel) . '</strong></p>'
                 . ($paymentMethod === 'cliq'
-                    ? '<p>Please complete your CLIQ payment and upload the screenshot on your order page.</p>'
+                    ? '<p>We received your CLIQ payment screenshot and will confirm it shortly.</p>'
                     : '<p>You chose Cash on Delivery — please have the amount ready on delivery.</p>')
                 . '<p style="margin-top:18px;color:#888;">— Alke · alkejo.com</p></div>';
             $replyTo = getenv('MAIL_REPLY_TO') ?: 'alkeclothingco@gmail.com';
@@ -288,7 +339,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['confirm_order'])) {
             @alke_send_email($storeTo, 'New order #' . $order_id . ' — Alke', $adminHtml);
 
             $_SESSION['cart'] = [];
-            unset($_SESSION['pending_order']);
+            unset($_SESSION['pending_order'], $_SESSION['pending_proof']);
             // Let the guest view the confirmation for the order they just placed.
             $_SESSION['last_order_id'] = $order_id;
             header("Location: order_success.php?id=" . $order_id);
@@ -355,6 +406,12 @@ include '../includes/header.php';
             <span>Payment Method</span>
             <strong><?php echo htmlspecialchars($paymentMethods[$reviewPayment] ?? 'Cash on Delivery'); ?></strong>
           </p>
+          <?php if ($reviewPayment === 'cliq' && !empty($_SESSION['pending_order']['proof'])): ?>
+            <p class="checkout-review-payment">
+              <span>Payment Screenshot</span>
+              <strong style="color:#1e8f4e;">✅ Attached</strong>
+            </p>
+          <?php endif; ?>
 
           <form method="POST" action="/alke/pages/checkout" class="checkout-actions" style="margin-top: 20px;">
             <input type="hidden" name="confirm_order" value="1">
@@ -390,7 +447,7 @@ include '../includes/header.php';
                   'coupon'  => $_POST['coupon_code'] ?? $pend['couponCode'] ?? '',
                 ];
               ?>
-              <form method="POST" action="/alke/pages/checkout" class="checkout-form" novalidate>
+              <form method="POST" action="/alke/pages/checkout" class="checkout-form" enctype="multipart/form-data" novalidate>
                 <?php echo alke_csrf_field(); ?>
                 <div class="checkout-field">
                   <label for="checkoutName">Name <span class="req">*</span></label>
@@ -452,7 +509,19 @@ include '../includes/header.php';
                     <p>Send <strong>JD <?php echo number_format((float)$totalPrice, 2); ?></strong> via CLIQ to:</p>
                     <p class="cliq-alias"><?php echo htmlspecialchars($cliqAlias); ?></p>
                     <p class="cliq-note">ℹ️ The name shown will be <strong><?php echo $cliqBusinessName; ?></strong> — this is Alke's registered business name, so you're sending to the right place.</p>
-                    <p>After you place the order you'll be asked to upload a screenshot of the payment so we can confirm it.</p>
+
+                    <?php $hasProof = !empty($_SESSION['pending_proof']); ?>
+                    <div class="checkout-field" style="margin-top:12px;">
+                      <label for="paymentProof">Payment screenshot <span class="req">*</span></label>
+                      <input type="file" id="paymentProof" name="payment_proof" accept="image/png,image/jpeg,image/webp">
+                      <p class="cliq-note" style="margin-top:6px;">
+                        <?php if ($hasProof): ?>
+                          ✅ Screenshot attached. Choose a new file only if you want to replace it.
+                        <?php else: ?>
+                          Upload a screenshot of your completed CLIQ payment (JPG, PNG or WebP, max 5&nbsp;MB).
+                        <?php endif; ?>
+                      </p>
+                    </div>
                   </div>
                 </div>
 
