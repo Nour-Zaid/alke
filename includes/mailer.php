@@ -54,7 +54,7 @@ if (!function_exists('alke_send_email')) {
      *
      * @param string|string[] $to
      */
-    function alke_send_email($to, string $subject, string $html, ?string $from = null): bool
+    function alke_send_email($to, string $subject, string $html, ?string $from = null, ?string $replyTo = null): bool
     {
         $key = alke_resend_key();
         if ($key === '') {
@@ -62,12 +62,18 @@ if (!function_exists('alke_send_email')) {
             return false;
         }
 
-        $payload = json_encode([
+        $data = [
             'from'    => $from ?: alke_mail_from(),
             'to'      => is_array($to) ? array_values($to) : [$to],
             'subject' => $subject,
             'html'    => $html,
-        ]);
+        ];
+        // Where customer replies go. Override per-call or via MAIL_REPLY_TO env.
+        $reply = $replyTo ?: (getenv('MAIL_REPLY_TO') ?: '');
+        if ($reply !== '') {
+            $data['reply_to'] = $reply;
+        }
+        $payload = json_encode($data);
 
         // Prefer curl; fall back to a stream context if curl isn't available.
         if (function_exists('curl_init')) {

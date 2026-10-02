@@ -272,7 +272,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['confirm_order'])) {
                     ? '<p>Please complete your CLIQ payment and upload the screenshot on your order page.</p>'
                     : '<p>You chose Cash on Delivery — please have the amount ready on delivery.</p>')
                 . '<p style="margin-top:18px;color:#888;">— Alke · alkejo.com</p></div>';
-            @alke_send_email($pending['email'], 'Your Alke order #' . $order_id, $custHtml);
+            $replyTo = getenv('MAIL_REPLY_TO') ?: 'alkeclothingco@gmail.com';
+            @alke_send_email($pending['email'], 'Your Alke order #' . $order_id, $custHtml, null, $replyTo);
 
             // Notify the store inbox of the new order.
             $storeTo = getenv('STORE_EMAIL') ?: 'nourzaid.dev@gmail.com';
