@@ -47,6 +47,54 @@ if (!function_exists('alke_mail_config')) {
     function alke_mail_config(): bool { return true; }
 }
 
+if (!function_exists('alke_email_template')) {
+    /**
+     * Wrap email body content in Alke's branded, email-client-safe layout.
+     * Uses tables + inline styles only (no <style>, no fl/grid) so it renders
+     * consistently in Gmail, Outlook, Apple Mail, etc.
+     *
+     * @param string $heading    Big heading shown at the top of the card.
+     * @param string $bodyHtml   Inner HTML (paragraphs, tables, etc.).
+     * @param string $preheader  Hidden inbox-preview text (optional).
+     */
+    function alke_email_template(string $heading, string $bodyHtml, string $preheader = ''): string
+    {
+        $accent = '#b8916a';
+        $ink    = '#0f0f0f';
+        $muted  = '#8a8a8a';
+        $border = '#ececec';
+        $year   = date('Y');
+        $pre    = $preheader !== '' ? htmlspecialchars($preheader) : '';
+
+        return '<!DOCTYPE html><html lang="en"><head>'
+            . '<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">'
+            . '<meta name="color-scheme" content="light only"></head>'
+            . '<body style="margin:0;padding:0;background:#f4f4f5;">'
+            // Hidden preheader (inbox preview snippet)
+            . '<div style="display:none;max-height:0;overflow:hidden;opacity:0;">' . $pre . '</div>'
+            . '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f4f5;">'
+            . '<tr><td align="center" style="padding:24px 12px;">'
+            . '<table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff;border:1px solid ' . $border . ';border-radius:10px;overflow:hidden;">'
+            // Header
+            . '<tr><td style="background:' . $ink . ';padding:26px 32px;text-align:center;">'
+            . '<span style="font-family:Georgia,\'Times New Roman\',serif;font-size:26px;letter-spacing:7px;color:#ffffff;font-weight:700;">ALKE</span>'
+            . '<div style="height:2px;width:40px;background:' . $accent . ';margin:10px auto 0;"></div>'
+            . '</td></tr>'
+            // Body
+            . '<tr><td style="padding:32px;font-family:Arial,Helvetica,sans-serif;color:#2a2a2a;font-size:15px;line-height:1.6;">'
+            . '<h1 style="margin:0 0 16px;font-family:Georgia,\'Times New Roman\',serif;font-size:22px;color:' . $ink . ';font-weight:700;">' . $heading . '</h1>'
+            . $bodyHtml
+            . '</td></tr>'
+            // Footer
+            . '<tr><td style="padding:22px 32px;border-top:1px solid ' . $border . ';font-family:Arial,Helvetica,sans-serif;font-size:12px;line-height:1.7;color:' . $muted . ';text-align:center;">'
+            . 'Questions? Just reply to this email and we\'ll help.<br>'
+            . '<a href="https://alkejo.com" style="color:' . $accent . ';text-decoration:none;">alkejo.com</a>'
+            . ' &nbsp;·&nbsp; &copy; ' . $year . ' Alke'
+            . '</td></tr>'
+            . '</table></td></tr></table></body></html>';
+    }
+}
+
 if (!function_exists('alke_send_email')) {
     /**
      * Send an HTML email via Resend. Returns true on success.

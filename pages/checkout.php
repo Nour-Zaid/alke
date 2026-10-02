@@ -301,42 +301,71 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['confirm_order'])) {
 
             /* Send emails (non-blocking: failures are logged, never shown). */
             $payLabel = $paymentMethods[$paymentMethod] ?? 'Cash on Delivery';
+
+            // Shared line-item rows (used in both the customer and store emails).
             $rows = '';
             foreach ($cartItems as $it) {
-                $rows .= '<tr><td style="padding:4px 0;">' . htmlspecialchars($it['name']) . ' × ' . (int)$it['quantity']
-                       . '</td><td align="right">JD ' . number_format((float)$it['subtotal'], 2) . '</td></tr>';
+                $rows .= '<tr>'
+                       . '<td style="padding:10px 0;border-bottom:1px solid #f0f0f0;color:#2a2a2a;">'
+                       . htmlspecialchars($it['name'])
+                       . ' <span style="color:#8a8a8a;">× ' . (int)$it['quantity'] . '</span></td>'
+                       . '<td align="right" style="padding:10px 0;border-bottom:1px solid #f0f0f0;color:#2a2a2a;white-space:nowrap;">JD ' . number_format((float)$it['subtotal'], 2) . '</td>'
+                       . '</tr>';
             }
             if ($discount > 0) {
-                $rows .= '<tr><td style="padding:4px 0;color:#1e8f4e;">Discount'
-                       . ($couponFinal ? ' (' . htmlspecialchars($couponFinal) . ')' : '')
-                       . '</td><td align="right" style="color:#1e8f4e;">− JD ' . number_format($discount, 2) . '</td></tr>';
+                $rows .= '<tr>'
+                       . '<td style="padding:10px 0;border-bottom:1px solid #f0f0f0;color:#1e8f4e;">Discount'
+                       . ($couponFinal ? ' (' . htmlspecialchars($couponFinal) . ')' : '') . '</td>'
+                       . '<td align="right" style="padding:10px 0;border-bottom:1px solid #f0f0f0;color:#1e8f4e;white-space:nowrap;">− JD ' . number_format($discount, 2) . '</td>'
+                       . '</tr>';
             }
-            $rows .= '<tr><td style="padding:8px 0;border-top:1px solid #ddd;"><strong>Total</strong></td>'
-                   . '<td align="right" style="border-top:1px solid #ddd;"><strong>JD ' . number_format($finalTotal, 2) . '</strong></td></tr>';
+            $rows .= '<tr>'
+                   . '<td style="padding:12px 0 0;font-weight:700;color:#0f0f0f;">Total</td>'
+                   . '<td align="right" style="padding:12px 0 0;font-weight:700;color:#0f0f0f;white-space:nowrap;">JD ' . number_format($finalTotal, 2) . '</td>'
+                   . '</tr>';
+            $itemsTable = '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" '
+                        . 'style="border-collapse:collapse;font-size:14px;margin:4px 0 20px;">' . $rows . '</table>';
 
-            $custHtml = '<div style="font-family:Arial,Helvetica,sans-serif;max-width:560px;margin:auto;color:#222;">'
-                . '<h2 style="margin:0 0 6px;">Thank you for your order, ' . htmlspecialchars($pending['name']) . '!</h2>'
-                . '<p>Your order <strong>#' . $order_id . '</strong> has been received.</p>'
-                . '<table width="100%" style="border-collapse:collapse;font-size:14px;">' . $rows . '</table>'
-                . '<p style="margin-top:14px;">Payment method: <strong>' . htmlspecialchars($payLabel) . '</strong></p>'
-                . ($paymentMethod === 'cliq'
-                    ? '<p>We received your CLIQ payment screenshot and will confirm it shortly.</p>'
-                    : '<p>You chose Cash on Delivery — please have the amount ready on delivery.</p>')
-                . '<p style="margin-top:18px;color:#888;">— Alke · alkejo.com</p></div>';
+            // ── Customer receipt ──────────────────────────────────────────
+            $payNote = $paymentMethod === 'cliq'
+                ? '<p style="margin:0 0 14px;background:#f6efe6;border:1px solid #e5d0b5;border-radius:8px;padding:12px 14px;">We received your <strong>CLIQ payment screenshot</strong> and will confirm it shortly.</p>'
+                : '<p style="margin:0 0 14px;background:#f6efe6;border:1px solid #e5d0b5;border-radius:8px;padding:12px 14px;">You chose <strong>Cash on Delivery</strong> — please have <strong>JD ' . number_format($finalTotal, 2) . '</strong> ready when your order arrives.</p>';
+
+            $custBody = '<p style="margin:0 0 14px;">Hi ' . htmlspecialchars($pending['name']) . ', thanks for shopping with Alke! '
+                      . 'We\'ve received your order <strong>#' . $order_id . '</strong> and are getting it ready.</p>'
+                      . '<p style="margin:0 0 6px;font-weight:700;color:#0f0f0f;">Order summary</p>'
+                      . $itemsTable
+                      . '<p style="margin:0 0 14px;">Payment method: <strong>' . htmlspecialchars($payLabel) . '</strong></p>'
+                      . $payNote
+                      . '<p style="margin:0 0 4px;font-weight:700;color:#0f0f0f;">Shipping to</p>'
+                      . '<p style="margin:0;color:#555;">' . htmlspecialchars($pending['name']) . '<br>'
+                      . htmlspecialchars($pending['address']) . '<br>'
+                      . htmlspecialchars($pending['city'] . ', ' . $pending['country'] . ' ' . $pending['postalCode']) . '<br>'
+                      . htmlspecialchars($pending['phone']) . '</p>';
+
+            $custHtml = alke_email_template(
+                'Thank you for your order!',
+                $custBody,
+                'Order #' . $order_id . ' confirmed — JD ' . number_format($finalTotal, 2)
+            );
             $replyTo = getenv('MAIL_REPLY_TO') ?: 'alkeclothingco@gmail.com';
             @alke_send_email($pending['email'], 'Your Alke order #' . $order_id, $custHtml, null, $replyTo);
 
-            // Notify the store inbox of the new order.
-            $storeTo = getenv('STORE_EMAIL') ?: 'nourzaid.dev@gmail.com';
-            $adminHtml = '<div style="font-family:Arial,sans-serif;">'
-                . '<h3>New order #' . $order_id . ' — JD ' . number_format($finalTotal, 2)
-                . ' (' . htmlspecialchars($payLabel) . ')</h3>'
-                . '<p>' . htmlspecialchars($pending['name']) . ' · ' . htmlspecialchars($pending['email'])
-                . ' · ' . htmlspecialchars($pending['phone']) . '</p>'
-                . '<p>' . htmlspecialchars($pending['address'] . ', ' . $pending['city'] . ', '
-                        . $pending['country'] . ' ' . $pending['postalCode']) . '</p>'
-                . '<table width="100%" style="border-collapse:collapse;font-size:14px;">' . $rows . '</table></div>';
-            @alke_send_email($storeTo, 'New order #' . $order_id . ' — Alke', $adminHtml);
+            // ── Store notification ────────────────────────────────────────
+            $storeTo   = getenv('STORE_EMAIL') ?: 'nourzaid.dev@gmail.com';
+            $storeBody = '<p style="margin:0 0 14px;"><strong>' . htmlspecialchars($payLabel) . '</strong> · '
+                       . htmlspecialchars($pending['name']) . ' · '
+                       . '<a href="mailto:' . htmlspecialchars($pending['email']) . '" style="color:#b8916a;">' . htmlspecialchars($pending['email']) . '</a> · '
+                       . htmlspecialchars($pending['phone']) . '</p>'
+                       . '<p style="margin:0 0 14px;color:#555;">' . htmlspecialchars($pending['address'] . ', ' . $pending['city'] . ', '
+                               . $pending['country'] . ' ' . $pending['postalCode']) . '</p>'
+                       . $itemsTable;
+            $storeHtml = alke_email_template(
+                'New order #' . $order_id,
+                $storeBody,
+                'New order — JD ' . number_format($finalTotal, 2)
+            );
+            @alke_send_email($storeTo, 'New order #' . $order_id . ' — Alke', $storeHtml);
 
             $_SESSION['cart'] = [];
             unset($_SESSION['pending_order'], $_SESSION['pending_proof']);
