@@ -9,4 +9,5 @@ Dockerfile
 nixpacks.toml
 admin/config.local.php
 config/db.local.php
+config/mail.local.php
 test_db.php

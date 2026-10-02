@@ -2,6 +2,7 @@
 session_start();
 include '../config/db.php';
 include '../includes/helpers.php';
+include '../includes/mailer.php';
 
 /* Auto-migrate: add shipping + payment + discount columns to orders if missing */
 foreach (['ship_name' => 'VARCHAR(150)', 'ship_email' => 'VARCHAR(150)', 'ship_phone' => 'VARCHAR(40)',
@@ -246,6 +247,44 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['confirm_order'])) {
             $stmtStock->close();
 
             $conn->commit();
+
+            /* Send emails (non-blocking: failures are logged, never shown). */
+            $payLabel = $paymentMethods[$paymentMethod] ?? 'Cash on Delivery';
+            $rows = '';
+            foreach ($cartItems as $it) {
+                $rows .= '<tr><td style="padding:4px 0;">' . htmlspecialchars($it['name']) . ' × ' . (int)$it['quantity']
+                       . '</td><td align="right">JD ' . number_format((float)$it['subtotal'], 2) . '</td></tr>';
+            }
+            if ($discount > 0) {
+                $rows .= '<tr><td style="padding:4px 0;color:#1e8f4e;">Discount'
+                       . ($couponFinal ? ' (' . htmlspecialchars($couponFinal) . ')' : '')
+                       . '</td><td align="right" style="color:#1e8f4e;">− JD ' . number_format($discount, 2) . '</td></tr>';
+            }
+            $rows .= '<tr><td style="padding:8px 0;border-top:1px solid #ddd;"><strong>Total</strong></td>'
+                   . '<td align="right" style="border-top:1px solid #ddd;"><strong>JD ' . number_format($finalTotal, 2) . '</strong></td></tr>';
+
+            $custHtml = '<div style="font-family:Arial,Helvetica,sans-serif;max-width:560px;margin:auto;color:#222;">'
+                . '<h2 style="margin:0 0 6px;">Thank you for your order, ' . htmlspecialchars($pending['name']) . '!</h2>'
+                . '<p>Your order <strong>#' . $order_id . '</strong> has been received.</p>'
+                . '<table width="100%" style="border-collapse:collapse;font-size:14px;">' . $rows . '</table>'
+                . '<p style="margin-top:14px;">Payment method: <strong>' . htmlspecialchars($payLabel) . '</strong></p>'
+                . ($paymentMethod === 'cliq'
+                    ? '<p>Please complete your CLIQ payment and upload the screenshot on your order page.</p>'
+                    : '<p>You chose Cash on Delivery — please have the amount ready on delivery.</p>')
+                . '<p style="margin-top:18px;color:#888;">— Alke · alkejo.com</p></div>';
+            @alke_send_email($pending['email'], 'Your Alke order #' . $order_id, $custHtml);
+
+            // Notify the store inbox of the new order.
+            $storeTo = getenv('STORE_EMAIL') ?: 'nourzaid.dev@gmail.com';
+            $adminHtml = '<div style="font-family:Arial,sans-serif;">'
+                . '<h3>New order #' . $order_id . ' — JD ' . number_format($finalTotal, 2)
+                . ' (' . htmlspecialchars($payLabel) . ')</h3>'
+                . '<p>' . htmlspecialchars($pending['name']) . ' · ' . htmlspecialchars($pending['email'])
+                . ' · ' . htmlspecialchars($pending['phone']) . '</p>'
+                . '<p>' . htmlspecialchars($pending['address'] . ', ' . $pending['city'] . ', '
+                        . $pending['country'] . ' ' . $pending['postalCode']) . '</p>'
+                . '<table width="100%" style="border-collapse:collapse;font-size:14px;">' . $rows . '</table></div>';
+            @alke_send_email($storeTo, 'New order #' . $order_id . ' — Alke', $adminHtml);
 
             $_SESSION['cart'] = [];
             unset($_SESSION['pending_order']);

@@ -1,5 +1,6 @@
 # Ignore sensitive config overrides
 config/db.local.php
+config/mail.local.php
 admin/config.local.php
 test_db.php
 
