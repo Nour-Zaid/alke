@@ -389,7 +389,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['confirm_order'])) {
             unset($_SESSION['pending_order'], $_SESSION['pending_proof']);
             // Let the guest view the confirmation for the order they just placed.
             $_SESSION['last_order_id'] = $order_id;
-            header("Location: order_success.php?id=" . $order_id);
+            header("Location: /alke/order_success?id=" . $order_id);
             exit();
         } catch (Exception $e) {
             $conn->rollback();
