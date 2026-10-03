@@ -153,7 +153,7 @@ function alke_shop_url(array $overrides = []): string
               $inStock    = (int)$row['stock'] > 0;
             ?>
             <article class="product-card">
-              <a href="product.php?id=<?php echo (int)$row['id']; ?>" class="product-card-link">
+              <a href="/alke/product?id=<?php echo (int)$row['id']; ?>" class="product-card-link">
                 <div class="product-image-wrap">
                   <img
                     src="<?php echo alke_esc($imagePath); ?>"
