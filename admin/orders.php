@@ -27,6 +27,69 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'updat
     }
 }
 
+/* ── Handle order deletion (returns items to stock) ──── */
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'delete_order') {
+    $orderId = (int)($_POST['order_id'] ?? 0);
+
+    if ($orderId > 0) {
+        $conn->begin_transaction();
+        try {
+            // Return each line item's quantity to product stock.
+            $restore = 0;
+            $sel = $conn->prepare("SELECT product_id, quantity FROM order_items WHERE order_id = ?");
+            $sel->bind_param('i', $orderId);
+            $sel->execute();
+            $res = $sel->get_result();
+            $lines = [];
+            while ($r = $res->fetch_assoc()) { $lines[] = $r; }
+            $sel->close();
+
+            $upd = $conn->prepare("UPDATE products SET stock = stock + ? WHERE id = ?");
+            foreach ($lines as $ln) {
+                $q = (int)$ln['quantity']; $pid = (int)$ln['product_id'];
+                $upd->bind_param('ii', $q, $pid);
+                $upd->execute();
+                $restore += $q;
+            }
+            $upd->close();
+
+            // Grab the proof path (if any) so we can clean up the file after commit.
+            $proofPath = null;
+            $ps = $conn->prepare("SELECT payment_proof FROM orders WHERE id = ?");
+            $ps->bind_param('i', $orderId);
+            $ps->execute();
+            $pr = $ps->get_result()->fetch_assoc();
+            $ps->close();
+            if ($pr && !empty($pr['payment_proof'])) { $proofPath = $pr['payment_proof']; }
+
+            // Delete the order (order_items cascade via FK).
+            $del = $conn->prepare("DELETE FROM orders WHERE id = ?");
+            $del->bind_param('i', $orderId);
+            $del->execute();
+            $deleted = $del->affected_rows;
+            $del->close();
+
+            $conn->commit();
+
+            // Remove the payment-proof screenshot from disk (best effort).
+            if ($proofPath && strpos($proofPath, 'uploads/proofs/') === 0) {
+                $abs = __DIR__ . '/../assets/' . $proofPath;
+                if (is_file($abs)) { @unlink($abs); }
+            }
+
+            if ($deleted > 0) {
+                $message     = "Order #$orderId deleted" . ($restore > 0 ? " — $restore item(s) returned to stock." : '.');
+                $messageType = 'success';
+            } else {
+                $message = "Order #$orderId was not found."; $messageType = 'danger';
+            }
+        } catch (Exception $e) {
+            $conn->rollback();
+            $message = 'Could not delete the order. Please try again.'; $messageType = 'danger';
+        }
+    }
+}
+
 /* ── Fetch all orders ───────────────────────────────── */
 $orders = $conn->query("
     SELECT o.id,
@@ -159,6 +222,13 @@ include __DIR__ . '/includes/header.php';
                     <?php endforeach; ?>
                   </select>
                   <button type="submit" class="btn btn-sm btn-success" style="margin-top:4px;">Save</button>
+                </form>
+                <form method="POST" class="delete-order-form" style="margin-top:6px;"
+                      onsubmit="return confirm('Delete order #<?= $oid ?>? This permanently removes it and returns its items to stock.');">
+                  <?= alke_csrf_field() ?>
+                  <input type="hidden" name="action"   value="delete_order">
+                  <input type="hidden" name="order_id" value="<?= $oid ?>">
+                  <button type="submit" class="btn btn-sm btn-danger">Delete</button>
                 </form>
               </td>
             </tr>
