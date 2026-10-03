@@ -9,7 +9,8 @@ foreach (['ship_name' => 'VARCHAR(150)', 'ship_email' => 'VARCHAR(150)', 'ship_p
           'ship_address' => 'VARCHAR(255)', 'ship_city' => 'VARCHAR(100)', 'ship_country' => 'VARCHAR(100)',
           'ship_postal_code' => 'VARCHAR(30)', 'payment_method' => 'VARCHAR(30)',
           'payment_proof' => 'VARCHAR(255)', 'coupon_code' => 'VARCHAR(50)',
-          'discount_amount' => 'DECIMAL(10,2)'] as $col => $type) {
+          'discount_amount' => 'DECIMAL(10,2)', 'shipping_fee' => 'DECIMAL(10,2)',
+          'delivery_area' => 'VARCHAR(20)'] as $col => $type) {
     $chk = $conn->query("SHOW COLUMNS FROM orders LIKE '$col'");
     if ($chk && $chk->num_rows === 0) {
         $conn->query("ALTER TABLE orders ADD COLUMN $col $type DEFAULT NULL");
@@ -37,6 +38,10 @@ $paymentMethods = [
     'cod'  => 'Cash on Delivery',
     'cliq' => 'Pay with CLIQ',
 ];
+
+/* Delivery areas and their flat shipping fee (JD). */
+$shippingRates  = ['amman' => 2.00, 'outside' => 3.00];
+$shippingLabels = ['amman' => 'Inside Amman', 'outside' => 'Outside Amman'];
 
 /* CLIQ payee alias + the registered business name that appears to the sender. */
 $cliqAlias        = 'Alke';
@@ -107,6 +112,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['place_order'])) {
     $country = isset($_POST['country']) ? trim($_POST['country']) : '';
     $postalCode = isset($_POST['postal_code']) ? trim($_POST['postal_code']) : '';
     $paymentMethod = isset($_POST['payment_method']) ? trim($_POST['payment_method']) : '';
+    $deliveryArea = isset($_POST['delivery_area']) ? trim($_POST['delivery_area']) : '';
     $couponCode = isset($_POST['coupon_code']) ? trim($_POST['coupon_code']) : '';
 
     $_SESSION['user_phone'] = $phone;
@@ -168,13 +174,15 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['place_order'])) {
         $errorMessage = 'Please enter a valid email address.';
     } elseif (!isset($paymentMethods[$paymentMethod])) {
         $errorMessage = 'Please select a payment method.';
+    } elseif (!isset($shippingRates[$deliveryArea])) {
+        $errorMessage = 'Please select your delivery area.';
     } elseif ($proofError !== '') {
         $errorMessage = $proofError;
     } elseif (!$couponCheck['ok']) {
         $errorMessage = $couponCheck['message'];
     } else {
         $couponCode = $couponCheck['code']; // normalized (may be '')
-        $_SESSION['pending_order'] = compact('name', 'email', 'phone', 'address', 'city', 'country', 'postalCode', 'paymentMethod', 'couponCode');
+        $_SESSION['pending_order'] = compact('name', 'email', 'phone', 'address', 'city', 'country', 'postalCode', 'paymentMethod', 'deliveryArea', 'couponCode');
         $_SESSION['pending_order']['proof'] = $proofPath;
         $orderPlaced = true;
     }
@@ -240,8 +248,11 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['confirm_order'])) {
                     $claim->close();
                 }
             }
-            $finalTotal = round((float)$totalPrice - $discount, 2);
-            if ($finalTotal < 0) { $finalTotal = 0.0; }
+            // Shipping: recomputed server-side from the chosen area (never trusted from the client).
+            $deliveryArea = isset($shippingRates[$pending['deliveryArea'] ?? '']) ? $pending['deliveryArea'] : 'outside';
+            $shippingFee  = $shippingRates[$deliveryArea];
+
+            $finalTotal = round(max(0, (float)$totalPrice - $discount) + $shippingFee, 2);
 
             /* 3. Insert order with shipping + payment + discount details.
                   For CLIQ, the screenshot was already uploaded on the checkout form. */
@@ -249,11 +260,12 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['confirm_order'])) {
             $stmtOrder = $conn->prepare("
                 INSERT INTO orders
                     (user_id, total_price, status, payment_method, payment_proof, coupon_code, discount_amount,
+                     shipping_fee, delivery_area,
                      ship_name, ship_email, ship_phone, ship_address, ship_city, ship_country, ship_postal_code)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ");
             $stmtOrder->bind_param(
-                "idssssdsssssss",
+                "idssssddssssssss",
                 $user_id,
                 $finalTotal,
                 $status,
@@ -261,6 +273,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['confirm_order'])) {
                 $proofForOrder,
                 $couponFinal,
                 $discount,
+                $shippingFee,
+                $deliveryArea,
                 $pending['name'],
                 $pending['email'],
                 $pending['phone'],
@@ -320,6 +334,10 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['confirm_order'])) {
                        . '</tr>';
             }
             $rows .= '<tr>'
+                   . '<td style="padding:10px 0;border-bottom:1px solid #f0f0f0;color:#2a2a2a;">Delivery <span style="color:#8a8a8a;">(' . htmlspecialchars($shippingLabels[$deliveryArea] ?? '') . ')</span></td>'
+                   . '<td align="right" style="padding:10px 0;border-bottom:1px solid #f0f0f0;color:#2a2a2a;white-space:nowrap;">JD ' . number_format($shippingFee, 2) . '</td>'
+                   . '</tr>';
+            $rows .= '<tr>'
                    . '<td style="padding:12px 0 0;font-weight:700;color:#0f0f0f;">Total</td>'
                    . '<td align="right" style="padding:12px 0 0;font-weight:700;color:#0f0f0f;white-space:nowrap;">JD ' . number_format($finalTotal, 2) . '</td>'
                    . '</tr>';
@@ -351,8 +369,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['confirm_order'])) {
             $replyTo = getenv('MAIL_REPLY_TO') ?: 'alkeclothingco@gmail.com';
             @alke_send_email($pending['email'], 'Your Alke order #' . $order_id, $custHtml, null, $replyTo);
 
-            // ── Store notification ────────────────────────────────────────
-            $storeTo   = getenv('STORE_EMAIL') ?: 'nourzaid.dev@gmail.com';
+            // ── Store notification (goes to the team inbox) ───────────────
+            $storeTo   = getenv('STORE_EMAIL') ?: 'alkeclothingco@gmail.com';
             $storeBody = '<p style="margin:0 0 14px;"><strong>' . htmlspecialchars($payLabel) . '</strong> · '
                        . htmlspecialchars($pending['name']) . ' · '
                        . '<a href="mailto:' . htmlspecialchars($pending['email']) . '" style="color:#b8916a;">' . htmlspecialchars($pending['email']) . '</a> · '
@@ -414,17 +432,23 @@ include '../includes/header.php';
           <?php
             $reviewCoupon   = alke_validate_coupon($conn, (string)($_SESSION['pending_order']['couponCode'] ?? ''), (float)$totalPrice);
             $reviewDiscount = $reviewCoupon['ok'] ? $reviewCoupon['discount'] : 0.0;
-            $reviewFinal    = max(0, round((float)$totalPrice - $reviewDiscount, 2));
+            $reviewArea     = isset($shippingRates[$_SESSION['pending_order']['deliveryArea'] ?? '']) ? $_SESSION['pending_order']['deliveryArea'] : 'outside';
+            $reviewShip     = $shippingRates[$reviewArea];
+            $reviewFinal    = max(0, round((float)$totalPrice - $reviewDiscount, 2)) + $reviewShip;
           ?>
+          <p class="checkout-review-payment" style="border-top:none; padding-top:0;">
+            <span>Subtotal</span><strong>JD <?php echo number_format((float)$totalPrice, 2); ?></strong>
+          </p>
           <?php if ($reviewDiscount > 0): ?>
-            <p class="checkout-review-payment" style="border-top:none; padding-top:0;">
-              <span>Subtotal</span><strong>JD <?php echo number_format((float)$totalPrice, 2); ?></strong>
-            </p>
             <p class="checkout-review-payment" style="border-top:none; color:#1e8f4e;">
               <span>Discount (<?php echo htmlspecialchars($reviewCoupon['code']); ?>)</span>
               <strong>− JD <?php echo number_format($reviewDiscount, 2); ?></strong>
             </p>
           <?php endif; ?>
+          <p class="checkout-review-payment" style="border-top:none;">
+            <span>Delivery (<?php echo htmlspecialchars($shippingLabels[$reviewArea]); ?>)</span>
+            <strong>JD <?php echo number_format($reviewShip, 2); ?></strong>
+          </p>
           <div class="checkout-total">
             <span>Total</span>
             <strong>JD <?php echo number_format($reviewFinal, 2); ?></strong>
@@ -535,7 +559,7 @@ include '../includes/header.php';
 
                   <div class="cliq-details" id="cliqDetails" style="<?php echo $chosenPayment === 'cliq' ? '' : 'display:none;'; ?>">
                     <h4>Pay with CLIQ</h4>
-                    <p>Send <strong>JD <?php echo number_format((float)$totalPrice, 2); ?></strong> via CLIQ to:</p>
+                    <p>Send <strong id="cliqAmount">JD <?php echo number_format((float)$totalPrice, 2); ?></strong> via CLIQ to:</p>
                     <p class="cliq-alias"><?php echo htmlspecialchars($cliqAlias); ?></p>
                     <p class="cliq-note">ℹ️ The name shown will be <strong><?php echo $cliqBusinessName; ?></strong> — this is Alke's registered business name, so you're sending to the right place.</p>
 
@@ -551,6 +575,27 @@ include '../includes/header.php';
                         <?php endif; ?>
                       </p>
                     </div>
+                  </div>
+                </div>
+
+                <?php $chosenArea = $_POST['delivery_area'] ?? $_SESSION['pending_order']['deliveryArea'] ?? ''; ?>
+                <div class="checkout-field">
+                  <label>Delivery Area <span class="req">*</span></label>
+                  <div class="payment-options">
+                    <label class="payment-option">
+                      <input type="radio" name="delivery_area" value="amman" data-fee="2" <?php echo $chosenArea === 'amman' ? 'checked' : ''; ?>>
+                      <span class="payment-option-body">
+                        <span class="payment-option-title">🏙️ Inside Amman</span>
+                        <span class="payment-option-desc">JD 2.00 delivery</span>
+                      </span>
+                    </label>
+                    <label class="payment-option">
+                      <input type="radio" name="delivery_area" value="outside" data-fee="3" <?php echo $chosenArea === 'outside' ? 'checked' : ''; ?>>
+                      <span class="payment-option-body">
+                        <span class="payment-option-title">🚚 Outside Amman</span>
+                        <span class="payment-option-desc">JD 3.00 delivery</span>
+                      </span>
+                    </label>
                   </div>
                 </div>
 
@@ -595,6 +640,10 @@ include '../includes/header.php';
                 <span id="summaryDiscountLabel">Discount</span>
                 <strong id="summaryDiscount">− JD 0.00</strong>
               </div>
+              <div class="checkout-total" id="summaryShipRow" style="display:none;">
+                <span>Delivery</span>
+                <strong id="summaryShip">JD 0.00</strong>
+              </div>
               <div class="checkout-total">
                 <span>Total</span>
                 <strong id="summaryTotal" data-subtotal="<?php echo (float)$totalPrice; ?>">JD <?php echo number_format((float)$totalPrice, 2); ?></strong>
@@ -623,24 +672,57 @@ include '../includes/header.php';
     });
   }
 
-  // ── Coupon "Apply" (live preview) ──────────────────────────────
+  // ── Live order summary: subtotal − discount + delivery ─────────
   var btn   = document.getElementById('applyCouponBtn');
   var input = document.getElementById('checkoutCoupon');
   var msg   = document.getElementById('couponMsg');
   var totalEl = document.getElementById('summaryTotal');
-  if (btn && input && totalEl) {
+  if (totalEl) {
     var subtotal = parseFloat(totalEl.dataset.subtotal) || 0;
     var subRow  = document.getElementById('summarySubtotalRow');
     var discRow = document.getElementById('summaryDiscountRow');
+    var shipRow = document.getElementById('summaryShipRow');
+    var shipEl  = document.getElementById('summaryShip');
+    var cliqAmt = document.getElementById('cliqAmount');
     var fmt = function (n) { return 'JD ' + Number(n).toFixed(2); };
 
-    function resetSummary() {
-      if (subRow)  subRow.style.display  = 'none';
-      if (discRow) discRow.style.display = 'none';
-      totalEl.textContent = fmt(subtotal);
+    // Shared state, updated by the coupon box and the delivery-area radios.
+    var state = { discount: 0, code: '' };
+
+    function shipFee() {
+      var sel = document.querySelector('input[name="delivery_area"]:checked');
+      return sel ? (parseFloat(sel.dataset.fee) || 0) : 0;
     }
 
+    function render() {
+      var ship    = shipFee();
+      var hasShip = document.querySelector('input[name="delivery_area"]:checked') !== null;
+      var hasDisc = state.discount > 0;
+
+      if (subRow)  subRow.style.display  = (hasDisc || hasShip) ? '' : 'none';
+      var subEl = document.getElementById('summarySubtotal');
+      if (subEl) subEl.textContent = fmt(subtotal);
+
+      if (discRow) discRow.style.display = hasDisc ? '' : 'none';
+      if (hasDisc) {
+        document.getElementById('summaryDiscountLabel').textContent = 'Discount (' + state.code + ')';
+        document.getElementById('summaryDiscount').textContent = '− ' + fmt(state.discount);
+      }
+
+      if (shipRow) shipRow.style.display = hasShip ? '' : 'none';
+      if (shipEl)  shipEl.textContent = fmt(ship);
+
+      var total = Math.max(0, subtotal - state.discount) + ship;
+      totalEl.textContent = fmt(total);
+      if (cliqAmt) cliqAmt.textContent = fmt(total);
+    }
+
+    document.querySelectorAll('input[name="delivery_area"]').forEach(function (r) {
+      r.addEventListener('change', render);
+    });
+
     function apply() {
+      if (!btn || !input) return;
       var code = input.value.trim();
       var body = new URLSearchParams();
       body.append('coupon_code', code);
@@ -655,21 +737,17 @@ include '../includes/header.php';
             msg.style.display = 'block';
             msg.className = 'coupon-msg is-ok';
             msg.textContent = '✓ ' + res.code + ' applied — you save ' + fmt(res.discount);
-            document.getElementById('summarySubtotal').textContent = fmt(res.subtotal);
-            document.getElementById('summaryDiscountLabel').textContent = 'Discount (' + res.code + ')';
-            document.getElementById('summaryDiscount').textContent = '− ' + fmt(res.discount);
-            if (subRow)  subRow.style.display  = '';
-            if (discRow) discRow.style.display = '';
-            totalEl.textContent = fmt(res.total);
+            state.discount = res.discount; state.code = res.code;
           } else if (code === '') {
             msg.style.display = 'none';
-            resetSummary();
+            state.discount = 0; state.code = '';
           } else {
             msg.style.display = 'block';
             msg.className = 'coupon-msg is-error';
             msg.textContent = res.message || 'Invalid coupon.';
-            resetSummary();
+            state.discount = 0; state.code = '';
           }
+          render();
         })
         .catch(function () {
           btn.disabled = false; btn.textContent = orig;
@@ -679,11 +757,15 @@ include '../includes/header.php';
         });
     }
 
-    btn.addEventListener('click', apply);
-    input.addEventListener('keydown', function (e) {
-      if (e.key === 'Enter') { e.preventDefault(); apply(); }
-    });
-    if (input.value.trim() !== '') { apply(); } // auto-apply a prefilled code
+    if (btn && input) {
+      btn.addEventListener('click', apply);
+      input.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter') { e.preventDefault(); apply(); }
+      });
+    }
+
+    render(); // reflect any pre-selected area / returning state on load
+    if (input && input.value.trim() !== '') { apply(); } // auto-apply a prefilled code
   }
 })();
 </script>

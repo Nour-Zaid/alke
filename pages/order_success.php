@@ -151,18 +151,27 @@ if ($order && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['payment_pr
           </div>
 
           <?php
+            $shippingLabels = ['amman' => 'Inside Amman', 'outside' => 'Outside Amman'];
             $orderDiscount = (float)($order['discount_amount'] ?? 0);
+            $orderShip     = (float)($order['shipping_fee'] ?? 0);
             $orderTotal    = (float)$order['total_price'];
+            // Items subtotal = total − shipping + discount.
+            $orderSubtotal = $orderTotal - $orderShip + $orderDiscount;
+            $orderArea     = $order['delivery_area'] ?? '';
           ?>
+          <p class="checkout-review-payment" style="border-top:none; padding-top:0;">
+            <span>Subtotal</span><strong>JD <?php echo number_format($orderSubtotal, 2); ?></strong>
+          </p>
           <?php if ($orderDiscount > 0): ?>
-            <p class="checkout-review-payment" style="border-top:none; padding-top:0;">
-              <span>Subtotal</span><strong>JD <?php echo number_format($orderTotal + $orderDiscount, 2); ?></strong>
-            </p>
             <p class="checkout-review-payment" style="border-top:none; color:#1e8f4e;">
               <span>Discount<?php echo !empty($order['coupon_code']) ? ' (' . htmlspecialchars($order['coupon_code']) . ')' : ''; ?></span>
               <strong>− JD <?php echo number_format($orderDiscount, 2); ?></strong>
             </p>
           <?php endif; ?>
+          <p class="checkout-review-payment" style="border-top:none;">
+            <span>Delivery<?php echo isset($shippingLabels[$orderArea]) ? ' (' . $shippingLabels[$orderArea] . ')' : ''; ?></span>
+            <strong>JD <?php echo number_format($orderShip, 2); ?></strong>
+          </p>
           <div class="checkout-total">
             <span>Total</span>
             <strong>JD <?php echo number_format($orderTotal, 2); ?></strong>

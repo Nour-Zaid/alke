@@ -97,6 +97,7 @@ $orders = $conn->query("
            COALESCE(NULLIF(u.email, ''), o.ship_email) AS email,
            o.ship_phone, o.ship_address, o.ship_city, o.ship_country, o.ship_postal_code,
            o.payment_method, o.payment_proof, o.coupon_code, o.discount_amount,
+           o.shipping_fee, o.delivery_area,
            o.total_price, o.status, o.created_at,
            COUNT(oi.id) AS item_count
     FROM orders o
@@ -300,16 +301,32 @@ include __DIR__ . '/includes/header.php';
                       <?php endforeach; ?>
                     </tbody>
                     <tfoot>
-                      <?php if ((float)($row['discount_amount'] ?? 0) > 0): ?>
+                      <?php
+                        $rShip = (float)($row['shipping_fee'] ?? 0);
+                        $rDisc = (float)($row['discount_amount'] ?? 0);
+                        $rSub  = $total - $rShip + $rDisc; // items subtotal
+                        $areaLabels = ['amman' => 'Inside Amman', 'outside' => 'Outside Amman'];
+                      ?>
+                      <?php if ($rDisc > 0 || $rShip > 0): ?>
                       <tr>
                         <td colspan="3" style="padding:6px 10px; text-align:right; color:#555;">Subtotal:</td>
-                        <td style="padding:6px 10px; text-align:right; color:#555;">JD <?= number_format($total + (float)$row['discount_amount'], 2) ?></td>
+                        <td style="padding:6px 10px; text-align:right; color:#555;">JD <?= number_format($rSub, 2) ?></td>
                       </tr>
+                      <?php endif; ?>
+                      <?php if ($rDisc > 0): ?>
                       <tr>
                         <td colspan="3" style="padding:6px 10px; text-align:right; color:#1e8f4e;">
                           Discount<?= !empty($row['coupon_code']) ? ' (' . htmlspecialchars($row['coupon_code']) . ')' : '' ?>:
                         </td>
-                        <td style="padding:6px 10px; text-align:right; color:#1e8f4e;">− JD <?= number_format((float)$row['discount_amount'], 2) ?></td>
+                        <td style="padding:6px 10px; text-align:right; color:#1e8f4e;">− JD <?= number_format($rDisc, 2) ?></td>
+                      </tr>
+                      <?php endif; ?>
+                      <?php if ($rShip > 0): ?>
+                      <tr>
+                        <td colspan="3" style="padding:6px 10px; text-align:right; color:#555;">
+                          Delivery<?= isset($areaLabels[$row['delivery_area']]) ? ' (' . $areaLabels[$row['delivery_area']] . ')' : '' ?>:
+                        </td>
+                        <td style="padding:6px 10px; text-align:right; color:#555;">JD <?= number_format($rShip, 2) ?></td>
                       </tr>
                       <?php endif; ?>
                       <tr style="border-top:2px solid #dee2e6;">

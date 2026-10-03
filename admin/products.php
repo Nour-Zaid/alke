@@ -286,7 +286,7 @@ include __DIR__ . '/includes/header.php';
 
       <div class="form-row form-row-2">
         <div class="form-group">
-          <label for="fPrice">Price ($) *</label>
+          <label for="fPrice">Price (JD) *</label>
           <input type="number" id="fPrice" name="price" class="form-control" required min="0.01" step="0.01" placeholder="29.99" value="<?= htmlspecialchars($fPrice) ?>">
         </div>
         <div class="form-group">

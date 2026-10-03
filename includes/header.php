@@ -64,7 +64,7 @@ if (!empty($_SESSION['cart'])) {
   <header class="site-header">
     <div class="container nav-wrap">
       <a href="/alke/" class="brand" aria-label="Alke Clothes Home">
-        <img src="/alke/the symbol.jpeg" alt="Alke Clothes Logo" class="brand-logo">
+        <img src="/alke/the%20symbol.jpeg" alt="Alke Clothes Logo" class="brand-logo">
         <span class="brand-text">Alke Clothes</span>
       </a>
 
