@@ -42,7 +42,7 @@ if (!$colExists) {
                     }
 
                     $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
-                    $verifyLink = $protocol . '://' . $_SERVER['HTTP_HOST'] . '/alke/pages/verify_email?token=' . urlencode($token);
+                    $verifyLink = $protocol . '://' . $_SERVER['HTTP_HOST'] . '/alke/verify_email?token=' . urlencode($token);
                     $subject = 'Verify your email - Alke';
                     $body = "Hello " . $user['name'] . ",\n\nClick the link below to verify your email address:\n\n" . $verifyLink . "\n\nIf you did not request this, ignore this email.";
                     $headers = 'From: noreply@' . $_SERVER['HTTP_HOST'];
@@ -86,14 +86,14 @@ include '../includes/header.php';
                 <a href="<?php echo htmlspecialchars($devVerifyLink); ?>">Click here to verify your email</a>
               </p>
             <?php endif; ?>
-            <a href="/alke/pages/login" class="btn" style="margin-top: 1rem;">Go to Login</a>
+            <a href="/alke/login" class="btn" style="margin-top: 1rem;">Go to Login</a>
           <?php endif; ?>
         </div>
       <?php endif; ?>
 
       <?php if (!$isSuccess && $colExists): ?>
         <div class="checkout-card">
-          <form method="POST" action="/alke/pages/resend_verification" class="checkout-form">
+          <form method="POST" action="/alke/resend_verification" class="checkout-form">
             <div class="checkout-field">
               <label for="resendEmail">Email Address</label>
               <input type="email" id="resendEmail" name="email" value="<?php echo htmlspecialchars($prefillEmail); ?>" required>
@@ -101,7 +101,7 @@ include '../includes/header.php';
 
             <div class="checkout-actions">
               <button type="submit" class="btn">Send Verification Email</button>
-              <a href="/alke/pages/login" class="btn checkout-secondary-btn">Back to Login</a>
+              <a href="/alke/login" class="btn checkout-secondary-btn">Back to Login</a>
             </div>
           </form>
         </div>

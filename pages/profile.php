@@ -3,7 +3,7 @@ session_start();
 include '../config/db.php';
 
 if (!isset($_SESSION['user_id'])) {
-    header("Location: /alke/pages/login");
+    header("Location: /alke/login");
     exit();
 }
 
@@ -185,7 +185,7 @@ if (is_array($user)) {
               <?php if (isset($user['email_verified']) && (int)$user['email_verified'] === 1): ?>
                 Yes
               <?php else: ?>
-                No &mdash; <a href="/alke/pages/resend_verification">Resend verification email</a>
+                No &mdash; <a href="/alke/resend_verification">Resend verification email</a>
               <?php endif; ?>
             </p>
           </div>
@@ -337,7 +337,7 @@ if (is_array($user)) {
       form.addEventListener('submit', function (e) {
         e.preventDefault();
 
-        fetch('/alke/pages/update_profile', {
+        fetch('/alke/update_profile', {
           method: 'POST',
           body: new FormData(form)
         })

@@ -119,7 +119,7 @@ if ($order && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['payment_pr
           <p><?php echo htmlspecialchars($errorMessage); ?></p>
         </div>
         <div class="checkout-empty-action">
-          <a href="/alke/pages/products" class="btn">Go to Shop</a>
+          <a href="/alke/products" class="btn">Go to Shop</a>
         </div>
       <?php else: ?>
         <?php
@@ -185,8 +185,8 @@ if ($order && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['payment_pr
                 <h4>CLIQ payment received</h4>
                 <p>Thanks! We received your CLIQ payment screenshot for <strong>Order #<?php echo (int)$order['id']; ?></strong> and will confirm your order shortly.</p>
                 <div class="proof-uploaded">
-                  <a href="/alke/pages/proof?order=<?php echo (int)$order['id']; ?>" target="_blank" rel="noopener">
-                    <img src="/alke/pages/proof?order=<?php echo (int)$order['id']; ?>" alt="Your payment screenshot" class="proof-thumb">
+                  <a href="/alke/proof?order=<?php echo (int)$order['id']; ?>" target="_blank" rel="noopener">
+                    <img src="/alke/proof?order=<?php echo (int)$order['id']; ?>" alt="Your payment screenshot" class="proof-thumb">
                   </a>
                 </div>
               <?php else: ?>
@@ -195,7 +195,7 @@ if ($order && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['payment_pr
                 <p class="cliq-alias"><?php echo htmlspecialchars($cliqAlias); ?></p>
                 <p class="cliq-note">ℹ️ The name shown will be <strong><?php echo $cliqBusinessName; ?></strong> — this is Alke's registered business name, so you're sending to the right place.</p>
                 <p>Use <strong>Order #<?php echo (int)$order['id']; ?></strong> as the payment reference. Your order will be processed once payment is confirmed.</p>
-                <form method="POST" action="/alke/pages/order_success?id=<?php echo (int)$order['id']; ?>" enctype="multipart/form-data" class="proof-form">
+                <form method="POST" action="/alke/order_success?id=<?php echo (int)$order['id']; ?>" enctype="multipart/form-data" class="proof-form">
                   <?php echo alke_csrf_field(); ?>
                   <label for="paymentProof"><strong>Upload your CLIQ payment screenshot</strong> so we can confirm it:</label>
                   <input type="file" id="paymentProof" name="payment_proof" accept="image/png,image/jpeg,image/webp" required>
@@ -210,7 +210,7 @@ if ($order && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['payment_pr
           <?php endif; ?>
 
           <div class="checkout-actions" style="margin-top: 20px;">
-            <a href="/alke/pages/products" class="btn">Continue Shopping</a>
+            <a href="/alke/products" class="btn">Continue Shopping</a>
           </div>
         </div>
       <?php endif; ?>

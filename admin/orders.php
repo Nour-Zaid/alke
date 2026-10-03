@@ -130,7 +130,7 @@ include __DIR__ . '/includes/header.php';
                 <?= htmlspecialchars($paymentLabels[$row['payment_method']] ?? ($row['payment_method'] ?: '—')) ?>
                 <?php if ($row['payment_method'] === 'cliq'): ?>
                   <?php if (!empty($row['payment_proof'])): ?>
-                    <a href="/alke/pages/proof?order=<?= (int)$oid ?>" target="_blank" rel="noopener"
+                    <a href="/alke/proof?order=<?= (int)$oid ?>" target="_blank" rel="noopener"
                        onclick="event.stopPropagation();"
                        style="display:inline-block; margin-top:3px; font-size:0.78rem; color:#1e8f4e; font-weight:600;">📎 View proof</a>
                   <?php else: ?>

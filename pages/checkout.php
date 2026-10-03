@@ -442,11 +442,11 @@ include '../includes/header.php';
             </p>
           <?php endif; ?>
 
-          <form method="POST" action="/alke/pages/checkout" class="checkout-actions" style="margin-top: 20px;">
+          <form method="POST" action="/alke/checkout" class="checkout-actions" style="margin-top: 20px;">
             <input type="hidden" name="confirm_order" value="1">
             <?php echo alke_csrf_field(); ?>
             <button type="submit" class="btn">Confirm Order</button>
-            <a href="/alke/pages/checkout" class="btn checkout-secondary-btn">Edit Order</a>
+            <a href="/alke/checkout" class="btn checkout-secondary-btn">Edit Order</a>
           </form>
         </div>
       <?php else: ?>
@@ -476,7 +476,7 @@ include '../includes/header.php';
                   'coupon'  => $_POST['coupon_code'] ?? $pend['couponCode'] ?? '',
                 ];
               ?>
-              <form method="POST" action="/alke/pages/checkout" class="checkout-form" enctype="multipart/form-data" novalidate>
+              <form method="POST" action="/alke/checkout" class="checkout-form" enctype="multipart/form-data" novalidate>
                 <?php echo alke_csrf_field(); ?>
                 <div class="checkout-field">
                   <label for="checkoutName">Name <span class="req">*</span></label>
@@ -565,7 +565,7 @@ include '../includes/header.php';
 
                 <div class="checkout-actions">
                   <button type="submit" name="place_order" class="btn">Place Order</button>
-                  <a href="/alke/pages/cart" class="btn checkout-secondary-btn">Back to Cart</a>
+                  <a href="/alke/cart" class="btn checkout-secondary-btn">Back to Cart</a>
                 </div>
               </form>
             </div>
@@ -604,7 +604,7 @@ include '../includes/header.php';
         <?php else: ?>
           <p class="no-products">Your cart is empty. Add products before checkout.</p>
           <div class="checkout-empty-action">
-            <a href="/alke/pages/products" class="btn">Go to Shop</a>
+            <a href="/alke/products" class="btn">Go to Shop</a>
           </div>
         <?php endif; ?>
       <?php endif; ?>
@@ -647,7 +647,7 @@ include '../includes/header.php';
       body.append('csrf_token', (document.querySelector('meta[name="csrf-token"]') || {}).content || '');
       var orig = btn.textContent;
       btn.disabled = true; btn.textContent = '…';
-      fetch('/alke/pages/apply_coupon', { method: 'POST', body: body, headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+      fetch('/alke/apply_coupon', { method: 'POST', body: body, headers: { 'X-Requested-With': 'XMLHttpRequest' } })
         .then(function (r) { return r.json(); })
         .then(function (res) {
           btn.disabled = false; btn.textContent = orig;

@@ -64,7 +64,7 @@ if (!empty($_SESSION['cart'])) {
               <?php foreach ($cartItems as $item): ?>
                 <tr class="cart-row" data-product-id="<?php echo (int)$item['id']; ?>" data-price="<?php echo (float)$item['price']; ?>">
                   <td>
-                    <a href="/alke/pages/product?id=<?php echo (int)$item['id']; ?>" class="cart-thumb-link" aria-label="View <?php echo htmlspecialchars($item['name']); ?> details">
+                    <a href="/alke/product?id=<?php echo (int)$item['id']; ?>" class="cart-thumb-link" aria-label="View <?php echo htmlspecialchars($item['name']); ?> details">
                       <img
                         src="<?php echo htmlspecialchars($item['image_path']); ?>"
                         alt="<?php echo htmlspecialchars($item['name']); ?>"
@@ -96,14 +96,14 @@ if (!empty($_SESSION['cart'])) {
 
           <div class="cart-actions">
             <button type="button" id="clearCartBtn" class="btn btn-ghost cart-clear">Clear Cart</button>
-            <a href="/alke/pages/products" class="btn btn-ghost">Continue Shopping</a>
-            <a href="/alke/pages/checkout" class="btn cart-checkout-btn">Proceed to Checkout</a>
+            <a href="/alke/products" class="btn btn-ghost">Continue Shopping</a>
+            <a href="/alke/checkout" class="btn cart-checkout-btn">Proceed to Checkout</a>
           </div>
         </div>
       <?php else: ?>
         <p class="no-products">Your cart is empty. Add products from the shop page.</p>
         <div style="text-align:center; margin-top: 16px;">
-          <a href="/alke/pages/products" class="btn">Go to Shop</a>
+          <a href="/alke/products" class="btn">Go to Shop</a>
         </div>
       <?php endif; ?>
     </div>
@@ -126,7 +126,7 @@ document.addEventListener('DOMContentLoaded', function () {
       data.append('quantity', quantity);
     }
 
-    return fetch('/alke/pages/update_cart', {
+    return fetch('/alke/update_cart', {
       method: 'POST',
       body: data
     }).then(function (res) { return res.json(); });

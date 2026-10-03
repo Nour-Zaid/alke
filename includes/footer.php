@@ -9,10 +9,10 @@
         <h4>Quick Links</h4>
         <ul>
           <li><a href="/alke/">Home</a></li>
-          <li><a href="/alke/pages/products">Shop</a></li>
-          <li><a href="/alke/pages/products?category=1">Men</a></li>
-          <li><a href="/alke/pages/products?category=2">Women</a></li>
-          <li><a href="/alke/pages/contact">Contact</a></li>
+          <li><a href="/alke/products">Shop</a></li>
+          <li><a href="/alke/products?category=1">Men</a></li>
+          <li><a href="/alke/products?category=2">Women</a></li>
+          <li><a href="/alke/contact">Contact</a></li>
         </ul>
       </div>
 

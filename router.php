@@ -71,6 +71,16 @@ if ($full === null) {
     }
 }
 
+// Shorthand: /alke/<name> maps to pages/<name>.php (so links can drop the /pages/
+// part, e.g. /alke/checkout -> pages/checkout.php). Direct paths above win first,
+// so /admin/..., /assets/... and the homepage are unaffected.
+if ($full === null) {
+    $pagesReal = realpath($docroot . '/pages' . $rel . '.php');
+    if ($pagesReal !== false && strpos($pagesReal, $docroot) === 0 && is_file($pagesReal)) {
+        $full = $pagesReal;
+    }
+}
+
 if ($full === null) {
     http_response_code(404);
     exit('Not found');

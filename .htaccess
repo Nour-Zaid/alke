@@ -34,6 +34,10 @@ RewriteRule ^ - [L]
 RewriteCond %{REQUEST_FILENAME}.php -f
 RewriteRule ^(.+?)/?$ $1.php [L]
 
+# Shorthand: /alke/<name> -> pages/<name>.php (so links can drop the /pages/ part)
+RewriteCond %{DOCUMENT_ROOT}/alke/pages/$1.php -f
+RewriteRule ^([^/]+?)/?$ pages/$1.php [L]
+
 # ── Browser caching for static assets ──────────────────────────────────────
 <IfModule mod_headers.c>
   <FilesMatch "\.(css|js|png|jpe?g|gif|svg|webp|ico|woff2?|ttf)$">

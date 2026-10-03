@@ -62,7 +62,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                     }
 
                     $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
-                    $verifyLink = $protocol . '://' . $_SERVER['HTTP_HOST'] . '/alke/pages/verify_email?token=' . urlencode($token);
+                    $verifyLink = $protocol . '://' . $_SERVER['HTTP_HOST'] . '/alke/verify_email?token=' . urlencode($token);
                     $subject = 'Verify your email - Alke';
                     $body = "Hello " . $name . ",\n\nPlease click the link below to verify your email address:\n\n" . $verifyLink . "\n\nIf you did not create this account, you can ignore this email.";
                     $headers = 'From: noreply@' . $_SERVER['HTTP_HOST'];
@@ -115,7 +115,7 @@ include '../includes/header.php';
               <a href="<?php echo htmlspecialchars($devVerifyLink); ?>">Click here to verify your email</a>
             </p>
           <?php endif; ?>
-          <a href="/alke/pages/login" class="btn">Go to Login</a>
+          <a href="/alke/login" class="btn">Go to Login</a>
         </div>
       <?php else: ?>
         <?php if (!empty($errorMessage)): ?>
@@ -125,7 +125,7 @@ include '../includes/header.php';
         <?php endif; ?>
 
         <div class="checkout-card">
-          <form method="POST" action="/alke/pages/register" class="checkout-form">
+          <form method="POST" action="/alke/register" class="checkout-form">
             <?php echo alke_csrf_field(); ?>
             <div class="checkout-field">
               <label for="regName">Name</label>
@@ -150,7 +150,7 @@ include '../includes/header.php';
 
             <div class="checkout-actions">
               <button type="submit" class="btn">Sign Up</button>
-              <a href="/alke/pages/login" class="btn checkout-secondary-btn">Already have an account? Login</a>
+              <a href="/alke/login" class="btn checkout-secondary-btn">Already have an account? Login</a>
             </div>
           </form>
         </div>

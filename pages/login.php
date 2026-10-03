@@ -59,7 +59,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                             && !empty($user['verification_token']);
 
                         if ($needsVerification) {
-                            $errorHtml = 'Please verify your email before logging in. <a href="/alke/pages/resend_verification">Resend verification email</a>';
+                            $errorHtml = 'Please verify your email before logging in. <a href="/alke/resend_verification">Resend verification email</a>';
                         } else {
                             // Auto-fix legacy accounts that have email_verified=0 but no token
                             if ($verifiedColExists && (int)($user['email_verified'] ?? 1) === 0) {
@@ -121,7 +121,7 @@ include '../includes/header.php';
       <?php endif; ?>
 
       <div class="checkout-card">
-        <form method="POST" action="/alke/pages/login" class="checkout-form">
+        <form method="POST" action="/alke/login" class="checkout-form">
           <?php echo alke_csrf_field(); ?>
           <div class="checkout-field">
             <label for="loginInput">Email or Phone</label>
@@ -135,7 +135,7 @@ include '../includes/header.php';
 
           <div class="checkout-actions">
             <button type="submit" class="btn">Login</button>
-            <a href="/alke/pages/register" class="btn checkout-secondary-btn">Create Account</a>
+            <a href="/alke/register" class="btn checkout-secondary-btn">Create Account</a>
           </div>
         </form>
       </div>
