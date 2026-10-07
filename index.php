@@ -30,7 +30,7 @@ if ($catResult) {
         <p>Elevated everyday essentials in Sand &amp; Black. Heavyweight fleece, considered details, made to be lived in.</p>
         <div class="hero-actions">
           <a href="/alke/products" class="btn">Shop the Collection</a>
-          <a href="/alke/products?category=2" class="btn hero-btn-ghost">Shop Sets</a>
+          <a href="/alke/products?q=Set" class="btn hero-btn-ghost">Shop Sets</a>
         </div>
       </div>
     </div>

@@ -3,8 +3,13 @@
 # (Railway's nixpacks php build does not include it by default).
 FROM php:8.2-cli
 
-# mysqli for MySQL connectivity
-RUN docker-php-ext-install mysqli
+# mysqli for MySQL connectivity + GD for server-side image downscaling on upload
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        libjpeg62-turbo-dev libpng-dev libwebp-dev libfreetype6-dev \
+    && docker-php-ext-configure gd --with-jpeg --with-webp --with-freetype \
+    && docker-php-ext-install -j"$(nproc)" mysqli gd \
+    && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 

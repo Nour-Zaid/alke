@@ -38,8 +38,48 @@ function alke_admin_store_image(array $file): array
     if (!move_uploaded_file($file['tmp_name'], $dir . '/' . $newName)) {
         return [null, 'Failed to save image. Check that the uploads folder is writable.'];
     }
+    // Shrink oversized photos so pages stay fast (no-op if GD is unavailable).
+    alke_downscale_image($dir . '/' . $newName, $mime);
     // DB stores a path relative to assets/, e.g. uploads/products/xxx.jpg
     return ['uploads/products/' . $newName, ''];
+}
+
+/** Downscale an image in place to a sane max size and re-encode. No-op without GD. */
+function alke_downscale_image(string $path, string $mime, int $maxSide = 1600, int $quality = 82): void
+{
+    if (!function_exists('imagecreatetruecolor')) return; // GD not installed
+    $size = @getimagesize($path);
+    if (!$size) return;
+    [$w, $h] = $size;
+    if ($w <= 0 || $h <= 0 || ($w <= $maxSide && $h <= $maxSide)) return; // already small enough
+
+    switch ($mime) {
+        case 'image/jpeg': $src = @imagecreatefromjpeg($path); break;
+        case 'image/png':  $src = @imagecreatefrompng($path);  break;
+        case 'image/webp': $src = function_exists('imagecreatefromwebp') ? @imagecreatefromwebp($path) : false; break;
+        case 'image/gif':  $src = @imagecreatefromgif($path);  break;
+        default:           $src = false;
+    }
+    if (!$src) return;
+
+    $scale = $maxSide / max($w, $h);
+    $nw = max(1, (int)round($w * $scale));
+    $nh = max(1, (int)round($h * $scale));
+    $dst = imagecreatetruecolor($nw, $nh);
+    if ($mime === 'image/png' || $mime === 'image/webp') {
+        imagealphablending($dst, false);
+        imagesavealpha($dst, true);
+    }
+    imagecopyresampled($dst, $src, 0, 0, 0, 0, $nw, $nh, $w, $h);
+
+    switch ($mime) {
+        case 'image/jpeg': imagejpeg($dst, $path, $quality); break;
+        case 'image/png':  imagepng($dst, $path, 6); break;
+        case 'image/webp': if (function_exists('imagewebp')) imagewebp($dst, $path, $quality); break;
+        case 'image/gif':  imagegif($dst, $path); break;
+    }
+    imagedestroy($src);
+    imagedestroy($dst);
 }
 
 /** Set products.image to the product's first gallery image (or '' if none). */
@@ -189,6 +229,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 alke_admin_sync_cover($conn, $pid);
                 $message = 'Image removed.'; $messageType = 'success';
             }
+        }
+    }
+
+    // SET a gallery image as the cover (moves it to the front)
+    if ($action === 'set_cover') {
+        $imageId = (int)($_POST['image_id'] ?? 0);
+        if ($imageId > 0 && ($q = $conn->query("SELECT product_id FROM product_images WHERE id = " . $imageId))
+            && ($row = $q->fetch_assoc())) {
+            $pid = (int)$row['product_id'];
+            $min = (int)$conn->query("SELECT COALESCE(MIN(sort_order), 0) FROM product_images WHERE product_id = $pid")->fetch_row()[0];
+            $newSort = $min - 1;
+            if ($stmt = $conn->prepare("UPDATE product_images SET sort_order = ? WHERE id = ?")) {
+                $stmt->bind_param('ii', $newSort, $imageId);
+                $stmt->execute();
+                $stmt->close();
+            }
+            alke_admin_sync_cover($conn, $pid);
+            $message = 'Cover image updated.'; $messageType = 'success';
         }
     }
 
@@ -534,24 +592,32 @@ function renderExistingImages(json) {
     var wrap = document.createElement('div');
     wrap.style.cssText = 'position:relative; width:72px;';
     wrap.innerHTML =
-      '<img src="/alke/assets/' + im.image + '" alt="" style="width:72px; height:90px; object-fit:cover; border-radius:5px; border:1px solid #e2e5e9;">'
-      + (idx === 0 ? '<span style="position:absolute; left:2px; top:2px; background:#0f0f0f; color:#fff; font-size:0.6rem; padding:1px 5px; border-radius:8px;">Cover</span>' : '')
+      '<img src="/alke/assets/' + im.image + '" alt="" style="width:72px; height:90px; object-fit:cover; border-radius:5px; border:1px solid #e2e5e9; background:#f1f3f5;">'
+      + (idx === 0
+          ? '<span style="position:absolute; left:2px; top:2px; background:#0f0f0f; color:#fff; font-size:0.6rem; padding:1px 5px; border-radius:8px;">Cover</span>'
+          : '<button type="button" title="Make cover" onclick="setCoverImage(' + im.id + ')" style="position:absolute; left:2px; top:2px; background:rgba(0,0,0,.7); color:#fff; font-size:0.6rem; padding:2px 6px; border:none; border-radius:8px; cursor:pointer;">Set cover</button>')
       + '<button type="button" title="Remove image" onclick="deleteProductImage(' + im.id + ')" '
       + 'style="position:absolute; top:-7px; right:-7px; width:20px; height:20px; border:none; border-radius:50%; background:#e03131; color:#fff; cursor:pointer; line-height:1; font-size:0.85rem;">&times;</button>';
     box.appendChild(wrap);
   });
 }
 
-function deleteProductImage(id) {
-  if (!confirm('Remove this image?')) return;
+function submitImageAction(action, id) {
   var f = document.createElement('form');
   f.method = 'POST';
   f.action = '/alke/admin/products';
   f.innerHTML = '<input type="hidden" name="csrf_token" value="' + ADMIN_CSRF + '">'
-    + '<input type="hidden" name="action" value="delete_image">'
+    + '<input type="hidden" name="action" value="' + action + '">'
     + '<input type="hidden" name="image_id" value="' + id + '">';
   document.body.appendChild(f);
   f.submit();
+}
+function deleteProductImage(id) {
+  if (!confirm('Remove this image?')) return;
+  submitImageAction('delete_image', id);
+}
+function setCoverImage(id) {
+  submitImageAction('set_cover', id);
 }
 
 function setCheckboxes(groupId, csv) {

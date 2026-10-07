@@ -95,7 +95,8 @@ if ($productId > 0) {
           $stock     = (int)$product['stock'];
           $inStock   = $stock > 0;
           $maxQty    = min(10, max(1, $stock));
-          alke_ensure_product_images($conn);
+          // Table/backfill is maintained by the admin; the storefront just reads
+          // (and falls back to the single cover image if the gallery is empty).
           $gallery   = alke_product_images($conn, (int)$product['id'], $product['image'] ?? null);
           $imagePath = $gallery[0];
         ?>
@@ -135,7 +136,7 @@ if ($productId > 0) {
                           class="product-thumb-btn<?php echo $i === 0 ? ' is-active' : ''; ?>"
                           data-full="<?php echo alke_esc($g); ?>"
                           aria-label="View image <?php echo $i + 1; ?>">
-                    <img src="<?php echo alke_esc($g); ?>" alt="">
+                    <img src="<?php echo alke_esc($g); ?>" alt="" loading="lazy">
                   </button>
                 <?php endforeach; ?>
               </div>
@@ -316,19 +317,31 @@ if ($productId > 0) {
   });
 })();
 
-// Product image gallery: swap the main image when a thumbnail is tapped.
+// Product image gallery: tap a thumbnail OR swipe the main image to change it.
 (function () {
   var main = document.getElementById('productMainImage');
   if (!main) return;
-  document.querySelectorAll('.product-thumb-btn').forEach(function (btn) {
-    btn.addEventListener('click', function () {
-      var full = btn.dataset.full;
-      if (!full) return;
-      main.src = full;
-      document.querySelectorAll('.product-thumb-btn').forEach(function (b) { b.classList.remove('is-active'); });
-      btn.classList.add('is-active');
-    });
-  });
+  var thumbs = Array.prototype.slice.call(document.querySelectorAll('.product-thumb-btn'));
+  var urls = thumbs.map(function (b) { return b.dataset.full; }).filter(Boolean);
+  if (urls.length < 2) return; // nothing to switch between
+  var idx = 0;
+
+  function show(i) {
+    idx = (i + urls.length) % urls.length;
+    main.src = urls[idx];
+    thumbs.forEach(function (b, j) { b.classList.toggle('is-active', j === idx); });
+  }
+  thumbs.forEach(function (b, j) { b.addEventListener('click', function () { show(j); }); });
+
+  // Touch swipe on the main image
+  var x0 = null;
+  main.addEventListener('touchstart', function (e) { x0 = e.changedTouches[0].clientX; }, { passive: true });
+  main.addEventListener('touchend', function (e) {
+    if (x0 === null) return;
+    var dx = e.changedTouches[0].clientX - x0;
+    if (Math.abs(dx) > 40) show(idx + (dx < 0 ? 1 : -1));
+    x0 = null;
+  }, { passive: true });
 })();
 </script>
 
