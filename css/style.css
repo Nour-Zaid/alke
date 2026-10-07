@@ -721,7 +721,10 @@ a.cart-clear:hover, button.cart-clear:hover {
   position: fixed;
   top: 0; right: 0;
   width: min(380px, 92vw);
-  height: 100vh;
+  height: 100vh;             /* fallback */
+  height: 100dvh;           /* excludes mobile browser toolbars so the footer stays visible */
+  max-height: 100vh;
+  max-height: 100dvh;
   background: var(--white);
   border-left: 1px solid var(--border);
   box-shadow: -12px 0 40px rgba(0,0,0,.13);
@@ -768,7 +771,8 @@ a.cart-clear:hover, button.cart-clear:hover {
 .cart-drawer-body {
   padding: 16px;
   overflow-y: auto;
-  flex: 1;
+  flex: 1 1 auto;
+  min-height: 0; /* allow the body to shrink so the footer is never pushed off-screen */
 }
 
 .mini-cart-item {
@@ -827,7 +831,10 @@ a.cart-clear:hover, button.cart-clear:hover {
 .cart-drawer-footer {
   border-top: 1px solid var(--border);
   padding: 16px 20px;
+  /* Keep clear of the home-indicator / browser chrome on phones */
+  padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px));
   background: var(--soft-bg);
+  flex: 0 0 auto; /* never shrink — the button is always visible */
 }
 
 .mini-cart-total {
@@ -844,6 +851,28 @@ a.cart-clear:hover, button.cart-clear:hover {
 
 /* ── Product details ─────────────────────────────────────────── */
 .product-details-page { min-height: 60vh; }
+
+/* Product image gallery thumbnails */
+.product-thumbs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 12px;
+}
+.product-thumb-btn {
+  width: 64px;
+  height: 80px;
+  padding: 0;
+  border: 2px solid transparent;
+  border-radius: var(--r-sm);
+  overflow: hidden;
+  cursor: pointer;
+  background: var(--soft-bg);
+  transition: border-color .18s var(--ease), transform .18s var(--ease);
+}
+.product-thumb-btn img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.product-thumb-btn:hover { transform: translateY(-2px); }
+.product-thumb-btn.is-active { border-color: var(--accent); }
 
 .product-details-card {
   background: var(--white);

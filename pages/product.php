@@ -95,7 +95,9 @@ if ($productId > 0) {
           $stock     = (int)$product['stock'];
           $inStock   = $stock > 0;
           $maxQty    = min(10, max(1, $stock));
-          $imagePath = alke_product_image($product);
+          alke_ensure_product_images($conn);
+          $gallery   = alke_product_images($conn, (int)$product['id'], $product['image'] ?? null);
+          $imagePath = $gallery[0];
         ?>
 
         <nav class="breadcrumbs" aria-label="Breadcrumb">
@@ -121,10 +123,23 @@ if ($productId > 0) {
         <div class="product-details-card">
           <div class="product-details-image-wrap">
             <img
+              id="productMainImage"
               src="<?php echo alke_esc($imagePath); ?>"
               alt="<?php echo alke_esc($product['name']); ?>"
               class="product-details-image"
             >
+            <?php if (count($gallery) > 1): ?>
+              <div class="product-thumbs">
+                <?php foreach ($gallery as $i => $g): ?>
+                  <button type="button"
+                          class="product-thumb-btn<?php echo $i === 0 ? ' is-active' : ''; ?>"
+                          data-full="<?php echo alke_esc($g); ?>"
+                          aria-label="View image <?php echo $i + 1; ?>">
+                    <img src="<?php echo alke_esc($g); ?>" alt="">
+                  </button>
+                <?php endforeach; ?>
+              </div>
+            <?php endif; ?>
           </div>
 
           <div class="product-details-content">
@@ -298,6 +313,21 @@ if ($productId > 0) {
         btn.disabled = false;
         form.submit();
       });
+  });
+})();
+
+// Product image gallery: swap the main image when a thumbnail is tapped.
+(function () {
+  var main = document.getElementById('productMainImage');
+  if (!main) return;
+  document.querySelectorAll('.product-thumb-btn').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var full = btn.dataset.full;
+      if (!full) return;
+      main.src = full;
+      document.querySelectorAll('.product-thumb-btn').forEach(function (b) { b.classList.remove('is-active'); });
+      btn.classList.add('is-active');
+    });
   });
 })();
 </script>

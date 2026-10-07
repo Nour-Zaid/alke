@@ -104,6 +104,61 @@ if (!function_exists('alke_product_image')) {
     }
 }
 
+/* ── Multi-image support ──────────────────────────────────── */
+if (!function_exists('alke_ensure_product_images')) {
+    /** Create the product_images table and backfill legacy single images once. */
+    function alke_ensure_product_images(mysqli $conn): void
+    {
+        $conn->query("
+            CREATE TABLE IF NOT EXISTS product_images (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                product_id INT NOT NULL,
+                image VARCHAR(255) NOT NULL,
+                sort_order INT NOT NULL DEFAULT 0,
+                INDEX idx_pi_product (product_id),
+                CONSTRAINT fk_pi_product FOREIGN KEY (product_id)
+                    REFERENCES products(id) ON DELETE CASCADE ON UPDATE CASCADE
+            )
+        ");
+        // Any product that has a cover image but no gallery rows gets one (idempotent).
+        $conn->query("
+            INSERT INTO product_images (product_id, image, sort_order)
+            SELECT p.id, p.image, 0
+            FROM products p
+            LEFT JOIN product_images pi ON pi.product_id = p.id
+            WHERE p.image IS NOT NULL AND p.image <> '' AND pi.id IS NULL
+        ");
+    }
+}
+
+if (!function_exists('alke_product_images')) {
+    /** Web paths of every image for a product (cover first). Always ≥ 1 (falls back). */
+    function alke_product_images(mysqli $conn, int $productId, ?string $fallback = null): array
+    {
+        $out = [];
+        if ($productId > 0 && ($stmt = @$conn->prepare(
+                "SELECT image FROM product_images WHERE product_id = ? ORDER BY sort_order, id"))) {
+            $stmt->bind_param('i', $productId);
+            $stmt->execute();
+            $res = $stmt->get_result();
+            while ($row = $res->fetch_assoc()) {
+                $img = trim((string)$row['image']);
+                if ($img !== '' && file_exists(__DIR__ . '/../assets/' . $img)) {
+                    $out[] = '/alke/assets/' . $img;
+                }
+            }
+            $stmt->close();
+        }
+        if (empty($out)) {
+            $fb = $fallback !== null ? trim($fallback) : '';
+            $out[] = ($fb !== '' && file_exists(__DIR__ . '/../assets/' . $fb))
+                ? '/alke/assets/' . $fb
+                : '/alke/testblackshirt.jpeg';
+        }
+        return $out;
+    }
+}
+
 /* ── Simple per-session rate limiter ───────────────────────── */
 if (!function_exists('alke_rate_limit')) {
     /**

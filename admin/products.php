@@ -18,6 +18,60 @@ foreach (['sizes', 'colors'] as $col) {
     }
 }
 
+/* Multi-image gallery: ensure table + backfill legacy single images. */
+alke_ensure_product_images($conn);
+
+/** Validate & store one uploaded image (by magic bytes). Returns [filename|null, error]. */
+function alke_admin_store_image(array $file): array
+{
+    $mimeToExt = ['image/jpeg' => 'jpg', 'image/png' => 'png', 'image/gif' => 'gif', 'image/webp' => 'webp'];
+    if (($file['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_NO_FILE) return [null, ''];
+    if ($file['error'] !== UPLOAD_ERR_OK || !is_uploaded_file($file['tmp_name'])) return [null, 'Image upload failed. Please try again.'];
+    if ($file['size'] > 5 * 1024 * 1024) return [null, 'Each image must be under 5 MB.'];
+    $info = @getimagesize($file['tmp_name']);
+    $mime = $info['mime'] ?? '';
+    if (!isset($mimeToExt[$mime])) return [null, 'Invalid image. Use a real JPG, PNG, GIF or WEBP file.'];
+    $newName = 'product_' . time() . '_' . bin2hex(random_bytes(4)) . '.' . $mimeToExt[$mime];
+    if (!move_uploaded_file($file['tmp_name'], __DIR__ . '/../assets/' . $newName)) {
+        return [null, 'Failed to save image. Check that the assets folder is writable.'];
+    }
+    return [$newName, ''];
+}
+
+/** Set products.image to the product's first gallery image (or '' if none). */
+function alke_admin_sync_cover(mysqli $conn, int $pid): void
+{
+    $cover = '';
+    if ($r = $conn->query("SELECT image FROM product_images WHERE product_id = " . (int)$pid . " ORDER BY sort_order, id LIMIT 1")) {
+        if ($row = $r->fetch_assoc()) $cover = (string)$row['image'];
+    }
+    if ($stmt = $conn->prepare("UPDATE products SET image = ? WHERE id = ?")) {
+        $stmt->bind_param('si', $cover, $pid);
+        $stmt->execute();
+        $stmt->close();
+    }
+}
+
+/** Pull all uploaded images from a product_images[] field into [filename,...]; sets $err on failure. */
+function alke_admin_collect_uploads(string $field, string &$err): array
+{
+    $saved = [];
+    if (empty($_FILES[$field]['name']) || !is_array($_FILES[$field]['name'])) return $saved;
+    $f = $_FILES[$field];
+    $n = count($f['name']);
+    for ($i = 0; $i < $n; $i++) {
+        [$fn, $e] = alke_admin_store_image([
+            'name'     => $f['name'][$i],
+            'tmp_name' => $f['tmp_name'][$i],
+            'error'    => $f['error'][$i],
+            'size'     => $f['size'][$i],
+        ]);
+        if ($e !== '') { $err = $e; break; }
+        if ($fn !== null) $saved[] = $fn;
+    }
+    return $saved;
+}
+
 /* ── Handle form submissions ────────────────────────── */
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = trim($_POST['action'] ?? '');
@@ -40,68 +94,96 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $message = 'Price must be greater than zero.';
             $messageType = 'danger';
         } else {
-            // Handle image upload
-            if (!empty($_FILES['product_image']['name'])) {
-                // Validate by ACTUAL content (magic bytes), not the client-supplied
-                // name/extension. The stored extension is derived from the detected
-                // type, and the filename is always server-generated.
-                $mimeToExt = [
-                    'image/jpeg' => 'jpg',
-                    'image/png'  => 'png',
-                    'image/gif'  => 'gif',
-                    'image/webp' => 'webp',
-                ];
-                $file = $_FILES['product_image'];
-
-                if ($file['error'] !== UPLOAD_ERR_OK || !is_uploaded_file($file['tmp_name'])) {
-                    $message = 'Image upload failed. Please try again.';
-                    $messageType = 'danger';
-                } elseif ($file['size'] > 5 * 1024 * 1024) {
-                    $message = 'Image must be under 5 MB.';
-                    $messageType = 'danger';
-                } else {
-                    $info = @getimagesize($file['tmp_name']);
-                    $mime = $info['mime'] ?? '';
-                    if (!isset($mimeToExt[$mime])) {
-                        $message = 'Invalid image. Use a real JPG, PNG, GIF or WEBP file.';
-                        $messageType = 'danger';
-                    } else {
-                        $ext     = $mimeToExt[$mime];
-                        $newName = 'product_' . time() . '_' . bin2hex(random_bytes(4)) . '.' . $ext;
-                        $dest    = __DIR__ . '/../assets/' . $newName;
-                        if (move_uploaded_file($file['tmp_name'], $dest)) {
-                            $imageName = $newName;
-                        } else {
-                            $message = 'Failed to save image. Check that the assets folder is writable.';
-                            $messageType = 'danger';
-                        }
-                    }
-                }
+            // Handle one or more uploaded images (validated by magic bytes).
+            $uploadErr   = '';
+            $savedImages = alke_admin_collect_uploads('product_images', $uploadErr);
+            if ($uploadErr !== '') {
+                $message = $uploadErr;
+                $messageType = 'danger';
             }
 
             if (empty($message)) {
                 if ($action === 'add_product') {
+                    $cover = $savedImages[0] ?? '';
                     $stmt = $conn->prepare(
                         "INSERT INTO products (name, description, price, stock, category_id, image, sizes, colors)
                          VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
                     );
-                    $stmt->bind_param('ssdissss', $name, $description, $price, $stock, $category_id, $imageName, $sizes, $colors);
+                    $stmt->bind_param('ssdissss', $name, $description, $price, $stock, $category_id, $cover, $sizes, $colors);
                     $ok = $stmt->execute();
+                    $newId = $ok ? (int)$conn->insert_id : 0;
                     $stmt->close();
+
+                    if ($ok && $newId > 0 && $savedImages) {
+                        $ins = $conn->prepare("INSERT INTO product_images (product_id, image, sort_order) VALUES (?, ?, ?)");
+                        foreach ($savedImages as $i => $img) {
+                            $ins->bind_param('isi', $newId, $img, $i);
+                            $ins->execute();
+                        }
+                        $ins->close();
+                        alke_admin_sync_cover($conn, $newId);
+                    }
                     $message     = $ok ? 'Product added successfully.' : 'Failed to add product: ' . $conn->error;
                     $messageType = $ok ? 'success' : 'danger';
                 } else {
                     $product_id = (int)($_POST['product_id'] ?? 0);
+                    // Update text fields only; the cover image is derived from the gallery.
                     $stmt = $conn->prepare(
-                        "UPDATE products SET name=?, description=?, price=?, stock=?, category_id=?, image=?, sizes=?, colors=?
+                        "UPDATE products SET name=?, description=?, price=?, stock=?, category_id=?, sizes=?, colors=?
                          WHERE id=?"
                     );
-                    $stmt->bind_param('ssdissssi', $name, $description, $price, $stock, $category_id, $imageName, $sizes, $colors, $product_id);
+                    $stmt->bind_param('ssdisssi', $name, $description, $price, $stock, $category_id, $sizes, $colors, $product_id);
                     $ok = $stmt->execute();
                     $stmt->close();
+
+                    if ($ok && $product_id > 0 && $savedImages) {
+                        // Append new images after any existing ones.
+                        $next = 0;
+                        if ($r = $conn->query("SELECT COALESCE(MAX(sort_order), -1) + 1 FROM product_images WHERE product_id = " . (int)$product_id)) {
+                            $next = (int)$r->fetch_row()[0];
+                        }
+                        $ins = $conn->prepare("INSERT INTO product_images (product_id, image, sort_order) VALUES (?, ?, ?)");
+                        foreach ($savedImages as $img) {
+                            $ins->bind_param('isi', $product_id, $img, $next);
+                            $ins->execute();
+                            $next++;
+                        }
+                        $ins->close();
+                    }
+                    if ($ok && $product_id > 0) alke_admin_sync_cover($conn, $product_id);
                     $message     = $ok ? 'Product updated successfully.' : 'Failed to update product: ' . $conn->error;
                     $messageType = $ok ? 'success' : 'danger';
                 }
+            }
+        }
+    }
+
+    // DELETE a single gallery image
+    if ($action === 'delete_image') {
+        $imageId = (int)($_POST['image_id'] ?? 0);
+        if ($imageId > 0) {
+            $q = $conn->prepare("SELECT product_id, image FROM product_images WHERE id = ?");
+            $q->bind_param('i', $imageId);
+            $q->execute();
+            $imgRow = $q->get_result()->fetch_assoc();
+            $q->close();
+
+            if ($imgRow) {
+                $pid = (int)$imgRow['product_id'];
+                $img = (string)$imgRow['image'];
+                $d = $conn->prepare("DELETE FROM product_images WHERE id = ?");
+                $d->bind_param('i', $imageId);
+                $d->execute();
+                $d->close();
+
+                // Remove the file only if no other row still references it.
+                $esc  = $conn->real_escape_string($img);
+                $used = (int)$conn->query("SELECT COUNT(*) FROM product_images WHERE image = '$esc'")->fetch_row()[0];
+                if ($used === 0 && $img !== '' && is_file(__DIR__ . '/../assets/' . $img)) {
+                    @unlink(__DIR__ . '/../assets/' . $img);
+                }
+                alke_admin_sync_cover($conn, $pid);
+                $message = 'Image removed.'; $messageType = 'success';
             }
         }
     }
@@ -212,6 +294,14 @@ $products   = $conn->query("
     LEFT JOIN categories c ON p.category_id = c.id
     ORDER BY p.id DESC
 ");
+
+// All gallery images grouped by product (for the edit panel).
+$imagesByProduct = [];
+if ($rImgs = $conn->query("SELECT id, product_id, image FROM product_images ORDER BY sort_order, id")) {
+    while ($ri = $rImgs->fetch_assoc()) {
+        $imagesByProduct[(int)$ri['product_id']][] = ['id' => (int)$ri['id'], 'image' => (string)$ri['image']];
+    }
+}
 
 include __DIR__ . '/includes/header.php';
 ?>
@@ -327,9 +417,14 @@ include __DIR__ . '/includes/header.php';
 
       <div class="form-row">
         <div class="form-group">
-          <label for="fImage">Product Image <span style="color:#aaa;font-weight:400;">(JPG/PNG/WEBP, max 5 MB)</span></label>
-          <input type="file" id="fImage" name="product_image" class="form-control" accept="image/*" onchange="previewImg(this)">
-          <img id="imgPreview" class="img-preview" src="" alt="" style="display:none;">
+          <label for="fImage">Product Images <span style="color:#aaa;font-weight:400;">(JPG/PNG/WEBP, max 5 MB each — you can pick several)</span></label>
+
+          <!-- Existing gallery images (edit mode) -->
+          <div id="fExistingImages" class="existing-images" style="display:none; flex-wrap:wrap; gap:8px; margin-bottom:10px;"></div>
+
+          <input type="file" id="fImage" name="product_images[]" class="form-control" accept="image/*" multiple onchange="previewImgs(this)">
+          <p style="font-size:0.78rem; color:#888; margin-top:4px;">The first image is used as the main/cover photo. New uploads are added to the gallery.</p>
+          <div id="imgPreview" class="img-preview-row" style="display:flex; flex-wrap:wrap; gap:8px; margin-top:8px;"></div>
         </div>
       </div>
 
@@ -397,6 +492,7 @@ include __DIR__ . '/includes/header.php';
                 data-stock="<?= (int)$p['stock'] ?>"
                 data-category="<?= (int)($p['category_id'] ?? 0) ?>"
                 data-image="<?= htmlspecialchars($dbImg, ENT_QUOTES) ?>"
+                data-images='<?= htmlspecialchars(json_encode($imagesByProduct[(int)$p['id']] ?? [], JSON_UNESCAPED_SLASHES), ENT_QUOTES) ?>'
                 data-sizes="<?= htmlspecialchars($p['sizes'] ?? '', ENT_QUOTES) ?>"
                 data-colors="<?= htmlspecialchars($p['colors'] ?? '', ENT_QUOTES) ?>"
               >Edit</button>
@@ -420,6 +516,40 @@ include __DIR__ . '/includes/header.php';
 </div>
 
 <script>
+var ADMIN_CSRF = '<?= htmlspecialchars(alke_csrf_token(), ENT_QUOTES) ?>';
+
+// Render the product's existing gallery images (with delete buttons) in edit mode.
+function renderExistingImages(json) {
+  var box = document.getElementById('fExistingImages');
+  box.innerHTML = '';
+  var imgs = [];
+  try { imgs = JSON.parse(json || '[]'); } catch (e) { imgs = []; }
+  if (!imgs.length) { box.style.display = 'none'; return; }
+  box.style.display = 'flex';
+  imgs.forEach(function (im, idx) {
+    var wrap = document.createElement('div');
+    wrap.style.cssText = 'position:relative; width:72px;';
+    wrap.innerHTML =
+      '<img src="/alke/assets/' + im.image + '" alt="" style="width:72px; height:90px; object-fit:cover; border-radius:5px; border:1px solid #e2e5e9;">'
+      + (idx === 0 ? '<span style="position:absolute; left:2px; top:2px; background:#0f0f0f; color:#fff; font-size:0.6rem; padding:1px 5px; border-radius:8px;">Cover</span>' : '')
+      + '<button type="button" title="Remove image" onclick="deleteProductImage(' + im.id + ')" '
+      + 'style="position:absolute; top:-7px; right:-7px; width:20px; height:20px; border:none; border-radius:50%; background:#e03131; color:#fff; cursor:pointer; line-height:1; font-size:0.85rem;">&times;</button>';
+    box.appendChild(wrap);
+  });
+}
+
+function deleteProductImage(id) {
+  if (!confirm('Remove this image?')) return;
+  var f = document.createElement('form');
+  f.method = 'POST';
+  f.action = '/alke/admin/products';
+  f.innerHTML = '<input type="hidden" name="csrf_token" value="' + ADMIN_CSRF + '">'
+    + '<input type="hidden" name="action" value="delete_image">'
+    + '<input type="hidden" name="image_id" value="' + id + '">';
+  document.body.appendChild(f);
+  f.submit();
+}
+
 function setCheckboxes(groupId, csv) {
   var vals = csv ? csv.split(',').map(function(v){ return v.trim(); }) : [];
   document.querySelectorAll('#' + groupId + ' input[type="checkbox"]').forEach(function(cb) {
@@ -439,8 +569,9 @@ function openAddForm() {
   document.getElementById('fStock').value       = '';
   document.getElementById('fCategory').value    = '';
   document.getElementById('fSubmitBtn').textContent = 'Add Product';
-  document.getElementById('imgPreview').style.display = 'none';
+  document.getElementById('imgPreview').innerHTML = '';
   document.getElementById('fImage').value = '';
+  renderExistingImages('[]');
   setCheckboxes('fSizesGroup', '');
   setCheckboxes('fColorsGroup', '');
 
@@ -463,16 +594,10 @@ document.querySelectorAll('.edit-btn').forEach(function (btn) {
     document.getElementById('fCategory').value                 = btn.dataset.category;
     document.getElementById('fSubmitBtn').textContent          = 'Save Changes';
     document.getElementById('fImage').value                    = '';
+    document.getElementById('imgPreview').innerHTML            = '';
+    renderExistingImages(btn.dataset.images);
     setCheckboxes('fSizesGroup',  btn.dataset.sizes  || '');
     setCheckboxes('fColorsGroup', btn.dataset.colors || '');
-
-    var preview = document.getElementById('imgPreview');
-    if (btn.dataset.image) {
-      preview.src = '/alke/assets/' + btn.dataset.image;
-      preview.style.display = 'block';
-    } else {
-      preview.style.display = 'none';
-    }
 
     var panel = document.getElementById('productFormPanel');
     panel.style.display = 'block';
@@ -484,17 +609,21 @@ function closeForm() {
   document.getElementById('productFormPanel').style.display = 'none';
 }
 
-// Live image preview on file select
-function previewImg(input) {
-  var preview = document.getElementById('imgPreview');
-  if (input.files && input.files[0]) {
+// Live previews for one or more selected files
+function previewImgs(input) {
+  var row = document.getElementById('imgPreview');
+  row.innerHTML = '';
+  if (!input.files) return;
+  Array.prototype.forEach.call(input.files, function (file) {
     var reader = new FileReader();
     reader.onload = function (e) {
-      preview.src = e.target.result;
-      preview.style.display = 'block';
+      var img = document.createElement('img');
+      img.src = e.target.result;
+      img.style.cssText = 'width:72px; height:90px; object-fit:cover; border-radius:5px; border:1px solid #e2e5e9;';
+      row.appendChild(img);
     };
-    reader.readAsDataURL(input.files[0]);
-  }
+    reader.readAsDataURL(file);
+  });
 }
 
 // If there was a form error, keep the form open with correct state
@@ -502,11 +631,6 @@ function previewImg(input) {
 document.getElementById('productFormPanel').style.display = 'block';
 document.getElementById('formPanelTitle').textContent = '<?= $fAction === 'edit_product' ? 'Edit Product' : 'Add New Product' ?>';
 document.getElementById('fSubmitBtn').textContent     = '<?= $fAction === 'edit_product' ? 'Save Changes' : 'Add Product' ?>';
-<?php if ($fCurrentImage): ?>
-var ep = document.getElementById('imgPreview');
-ep.src = '/alke/assets/<?= htmlspecialchars($fCurrentImage) ?>';
-ep.style.display = 'block';
-<?php endif; ?>
 <?php endif; ?>
 </script>
 
