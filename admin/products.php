@@ -116,6 +116,28 @@ function alke_admin_collect_uploads(string $field, string &$err): array
     return $saved;
 }
 
+/** Return a product's gallery images as [['id'=>.., 'image'=>..], ...] (cover first). */
+function alke_admin_images_list(mysqli $conn, int $pid): array
+{
+    $out = [];
+    if ($r = $conn->query("SELECT id, image FROM product_images WHERE product_id = " . (int)$pid . " ORDER BY sort_order, id")) {
+        while ($row = $r->fetch_assoc()) {
+            $out[] = ['id' => (int)$row['id'], 'image' => (string)$row['image']];
+        }
+    }
+    return $out;
+}
+
+/** Send a JSON response and stop (used for AJAX image actions). */
+function alke_admin_json_exit(array $data): void
+{
+    header('Content-Type: application/json');
+    echo json_encode($data);
+    exit;
+}
+
+$isAjax = (($_SERVER['HTTP_X_REQUESTED_WITH'] ?? '') === 'XMLHttpRequest');
+
 /* ── Handle form submissions ────────────────────────── */
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = trim($_POST['action'] ?? '');
@@ -228,7 +250,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
                 alke_admin_sync_cover($conn, $pid);
                 $message = 'Image removed.'; $messageType = 'success';
+                if ($isAjax) alke_admin_json_exit(['ok' => true, 'images' => alke_admin_images_list($conn, $pid)]);
+            } elseif ($isAjax) {
+                alke_admin_json_exit(['ok' => false]);
             }
+        } elseif ($isAjax) {
+            alke_admin_json_exit(['ok' => false]);
         }
     }
 
@@ -247,6 +274,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
             alke_admin_sync_cover($conn, $pid);
             $message = 'Cover image updated.'; $messageType = 'success';
+            if ($isAjax) alke_admin_json_exit(['ok' => true, 'images' => alke_admin_images_list($conn, $pid)]);
+        } elseif ($isAjax) {
+            alke_admin_json_exit(['ok' => false]);
+        }
+    }
+
+    // ADD images to an existing product (AJAX — no page reload)
+    if ($action === 'add_images') {
+        $pid = (int)($_POST['product_id'] ?? 0);
+        $err = '';
+        if ($pid > 0) {
+            $saved = alke_admin_collect_uploads('product_images', $err);
+            if ($err === '' && $saved) {
+                $next = 0;
+                if ($r = $conn->query("SELECT COALESCE(MAX(sort_order), -1) + 1 FROM product_images WHERE product_id = $pid")) {
+                    $next = (int)$r->fetch_row()[0];
+                }
+                $ins = $conn->prepare("INSERT INTO product_images (product_id, image, sort_order) VALUES (?, ?, ?)");
+                foreach ($saved as $img) {
+                    $ins->bind_param('isi', $pid, $img, $next);
+                    $ins->execute();
+                    $next++;
+                }
+                $ins->close();
+                alke_admin_sync_cover($conn, $pid);
+            }
+            if ($isAjax) alke_admin_json_exit(['ok' => ($err === ''), 'error' => $err, 'images' => alke_admin_images_list($conn, $pid)]);
+        } elseif ($isAjax) {
+            alke_admin_json_exit(['ok' => false, 'error' => 'Save the product first.']);
         }
     }
 
@@ -487,6 +543,7 @@ include __DIR__ . '/includes/header.php';
           <input type="file" id="fImage" name="product_images[]" class="form-control" accept="image/*" multiple onchange="previewImgs(this)">
           <p style="font-size:0.78rem; color:#888; margin-top:4px;">The first image is used as the main/cover photo. New uploads are added to the gallery.</p>
           <div id="imgPreview" class="img-preview-row" style="display:flex; flex-wrap:wrap; gap:8px; margin-top:8px;"></div>
+          <button type="button" id="addImagesBtn" class="btn btn-sm" style="display:none; margin-top:8px;" onclick="uploadMoreImages()">Add selected image(s)</button>
         </div>
       </div>
 
@@ -602,22 +659,61 @@ function renderExistingImages(json) {
   });
 }
 
-function submitImageAction(action, id) {
-  var f = document.createElement('form');
-  f.method = 'POST';
-  f.action = '/alke/admin/products';
-  f.innerHTML = '<input type="hidden" name="csrf_token" value="' + ADMIN_CSRF + '">'
-    + '<input type="hidden" name="action" value="' + action + '">'
-    + '<input type="hidden" name="image_id" value="' + id + '">';
-  document.body.appendChild(f);
-  f.submit();
+// Delete / set-cover via AJAX — update the thumbnails in place, no page reload.
+function imageAction(action, id) {
+  var body = new URLSearchParams();
+  body.append('csrf_token', ADMIN_CSRF);
+  body.append('action', action);
+  body.append('image_id', id);
+  return fetch('/alke/admin/products', {
+    method: 'POST', body: body, headers: { 'X-Requested-With': 'XMLHttpRequest' }
+  })
+    .then(function (r) { return r.json(); })
+    .then(function (res) {
+      if (res && res.ok) { renderExistingImages(JSON.stringify(res.images || [])); }
+      else { alert('Could not update the image. Please try again.'); }
+    })
+    .catch(function () { alert('Network error. Please try again.'); });
 }
 function deleteProductImage(id) {
   if (!confirm('Remove this image?')) return;
-  submitImageAction('delete_image', id);
+  imageAction('delete_image', id);
 }
 function setCoverImage(id) {
-  submitImageAction('set_cover', id);
+  imageAction('set_cover', id);
+}
+
+// Upload selected images to an existing product via AJAX — no page reload.
+function uploadMoreImages() {
+  var input = document.getElementById('fImage');
+  var pid   = document.getElementById('fProductId').value;
+  if (!pid) { alert('Save the product first, then add images.'); return; }
+  if (!input.files || !input.files.length) { alert('Choose image(s) to add first.'); return; }
+
+  var fd = new FormData();
+  fd.append('csrf_token', ADMIN_CSRF);
+  fd.append('action', 'add_images');
+  fd.append('product_id', pid);
+  Array.prototype.forEach.call(input.files, function (f) { fd.append('product_images[]', f); });
+
+  var btn = document.getElementById('addImagesBtn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Uploading…'; }
+  fetch('/alke/admin/products', { method: 'POST', body: fd, headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+    .then(function (r) { return r.json(); })
+    .then(function (res) {
+      if (btn) { btn.disabled = false; btn.textContent = 'Add selected image(s)'; }
+      if (res && res.ok) {
+        renderExistingImages(JSON.stringify(res.images || []));
+        input.value = '';
+        document.getElementById('imgPreview').innerHTML = '';
+      } else {
+        alert(res && res.error ? res.error : 'Upload failed. Please try again.');
+      }
+    })
+    .catch(function () {
+      if (btn) { btn.disabled = false; btn.textContent = 'Add selected image(s)'; }
+      alert('Network error. Please try again.');
+    });
 }
 
 function setCheckboxes(groupId, csv) {
@@ -642,6 +738,7 @@ function openAddForm() {
   document.getElementById('imgPreview').innerHTML = '';
   document.getElementById('fImage').value = '';
   renderExistingImages('[]');
+  document.getElementById('addImagesBtn').style.display = 'none';
   setCheckboxes('fSizesGroup', '');
   setCheckboxes('fColorsGroup', '');
 
@@ -666,6 +763,7 @@ document.querySelectorAll('.edit-btn').forEach(function (btn) {
     document.getElementById('fImage').value                    = '';
     document.getElementById('imgPreview').innerHTML            = '';
     renderExistingImages(btn.dataset.images);
+    document.getElementById('addImagesBtn').style.display      = 'inline-block';
     setCheckboxes('fSizesGroup',  btn.dataset.sizes  || '');
     setCheckboxes('fColorsGroup', btn.dataset.colors || '');
 

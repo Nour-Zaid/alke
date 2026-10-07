@@ -328,7 +328,14 @@ if ($productId > 0) {
 
   function show(i) {
     idx = (i + urls.length) % urls.length;
-    main.src = urls[idx];
+    // Quick fade: dim out, swap once the new image is ready, fade back in.
+    main.classList.add('is-swapping');
+    var next = new Image();
+    next.onload = function () {
+      main.src = urls[idx];
+      main.classList.remove('is-swapping');
+    };
+    next.src = urls[idx];
     thumbs.forEach(function (b, j) { b.classList.toggle('is-active', j === idx); });
   }
   thumbs.forEach(function (b, j) { b.addEventListener('click', function () { show(j); }); });

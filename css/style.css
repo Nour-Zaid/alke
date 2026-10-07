@@ -857,7 +857,6 @@ a.cart-clear:hover, button.cart-clear:hover {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
-  margin-top: 12px;
 }
 .product-thumb-btn {
   width: 64px;
@@ -887,15 +886,23 @@ a.cart-clear:hover, button.cart-clear:hover {
 .product-details-image-wrap {
   background: var(--soft-bg);
   padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-self: start; /* don't stretch to the content column's height */
+  min-width: 0;
 }
 
 .product-details-image {
   width: 100%;
-  height: 100%;
+  height: auto;
+  aspect-ratio: 4 / 5;
   max-height: 620px;
   object-fit: cover;
   border-radius: var(--r-md);
+  transition: opacity .2s var(--ease); /* fade when swiping between images */
 }
+.product-details-image.is-swapping { opacity: 0; }
 
 .product-details-content {
   padding: 40px 36px;
