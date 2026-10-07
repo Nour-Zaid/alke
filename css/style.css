@@ -901,6 +901,7 @@ a.cart-clear:hover, button.cart-clear:hover {
   object-fit: cover;
   border-radius: var(--r-md);
   transition: opacity .2s var(--ease); /* fade when swiping between images */
+  touch-action: pan-y; /* vertical scroll stays with the page; we handle horizontal swipes */
 }
 .product-details-image.is-swapping { opacity: 0; }
 

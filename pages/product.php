@@ -340,14 +340,25 @@ if ($productId > 0) {
   }
   thumbs.forEach(function (b, j) { b.addEventListener('click', function () { show(j); }); });
 
-  // Touch swipe on the main image
-  var x0 = null;
-  main.addEventListener('touchstart', function (e) { x0 = e.changedTouches[0].clientX; }, { passive: true });
+  // Touch swipe on the main image — block page scroll once a horizontal swipe is detected.
+  var x0 = null, y0 = null, horizontal = false;
+  main.addEventListener('touchstart', function (e) {
+    x0 = e.changedTouches[0].clientX;
+    y0 = e.changedTouches[0].clientY;
+    horizontal = false;
+  }, { passive: true });
+  main.addEventListener('touchmove', function (e) {
+    if (x0 === null) return;
+    var dx = e.changedTouches[0].clientX - x0;
+    var dy = e.changedTouches[0].clientY - y0;
+    if (!horizontal && Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 8) horizontal = true;
+    if (horizontal) e.preventDefault(); // stop the page from scrolling during a horizontal swipe
+  }, { passive: false });
   main.addEventListener('touchend', function (e) {
     if (x0 === null) return;
     var dx = e.changedTouches[0].clientX - x0;
-    if (Math.abs(dx) > 40) show(idx + (dx < 0 ? 1 : -1));
-    x0 = null;
+    if (horizontal && Math.abs(dx) > 40) show(idx + (dx < 0 ? 1 : -1));
+    x0 = null; y0 = null; horizontal = false;
   }, { passive: true });
 })();
 </script>
