@@ -8,6 +8,8 @@ test_db.php
 .DS_Store
 Thumbs.db
 
-# Runtime user uploads (payment proofs) — keep the folder, ignore contents
+# Runtime user uploads — keep the folders, ignore their contents (they live on the volume)
 assets/uploads/proofs/*
 !assets/uploads/proofs/.gitkeep
+assets/uploads/products/*
+!assets/uploads/products/.gitkeep

@@ -37,7 +37,8 @@ foreach (explode('/', $rel) as $seg) {
 }
 
 // 2) Payment proofs are private — only the authenticated endpoint may serve them.
-if (strpos($rel, '/assets/uploads/') === 0) {
+//    (Product images live under uploads/products/ and ARE publicly viewable.)
+if (strpos($rel, '/assets/uploads/proofs/') === 0) {
     http_response_code(404);
     exit('Not found');
 }

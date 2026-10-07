@@ -31,11 +31,15 @@ function alke_admin_store_image(array $file): array
     $info = @getimagesize($file['tmp_name']);
     $mime = $info['mime'] ?? '';
     if (!isset($mimeToExt[$mime])) return [null, 'Invalid image. Use a real JPG, PNG, GIF or WEBP file.'];
+    // Store under assets/uploads/ — the persistent volume — so images survive redeploys.
+    $dir = __DIR__ . '/../assets/uploads/products';
+    if (!is_dir($dir)) { @mkdir($dir, 0775, true); }
     $newName = 'product_' . time() . '_' . bin2hex(random_bytes(4)) . '.' . $mimeToExt[$mime];
-    if (!move_uploaded_file($file['tmp_name'], __DIR__ . '/../assets/' . $newName)) {
-        return [null, 'Failed to save image. Check that the assets folder is writable.'];
+    if (!move_uploaded_file($file['tmp_name'], $dir . '/' . $newName)) {
+        return [null, 'Failed to save image. Check that the uploads folder is writable.'];
     }
-    return [$newName, ''];
+    // DB stores a path relative to assets/, e.g. uploads/products/xxx.jpg
+    return ['uploads/products/' . $newName, ''];
 }
 
 /** Set products.image to the product's first gallery image (or '' if none). */

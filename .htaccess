@@ -19,8 +19,9 @@ RedirectMatch 404 /\.(?!well-known)
   Require all denied
 </Files>
 
-# Payment proofs are private — served only through the authenticated endpoint
-RedirectMatch 404 ^/alke/assets/uploads/
+# Payment proofs are private — served only through the authenticated endpoint.
+# Product images under uploads/products/ remain publicly viewable.
+RedirectMatch 404 ^/alke/assets/uploads/proofs/
 
 # Internal include/config directories are never entry points
 RedirectMatch 404 ^/alke/(config|includes|admin/includes)/
