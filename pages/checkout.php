@@ -47,44 +47,13 @@ $shippingLabels = ['amman' => 'Inside Amman', 'outside' => 'Outside Amman'];
 $cliqAlias        = 'Alke';
 $cliqBusinessName = 'Sharikat Rowad Al-Aqmisha for design &amp; manufacturing of embroidered clothing';
 
-if (!isset($_SESSION['cart'])) {
-    $_SESSION['cart'] = [];
-}
+/* order_items gets size + color columns (added once, if missing). */
+alke_ensure_order_item_variants($conn);
 
-$cartItems = [];
-$totalPrice = 0;
-$orderPlaced = false;
+$cartItems    = alke_cart_lines($conn); // one line per product + size + color
+$totalPrice   = alke_cart_total($cartItems);
+$orderPlaced  = false;
 $errorMessage = '';
-
-if (!empty($_SESSION['cart'])) {
-    $productIds = array_map('intval', array_keys($_SESSION['cart']));
-    if (!empty($productIds)) {
-        $idsList = implode(',', $productIds);
-        $result = $conn->query("SELECT id, name, price, image FROM products WHERE id IN ($idsList)");
-
-        if ($result) {
-            while ($row = $result->fetch_assoc()) {
-                $productId = (int)$row['id'];
-                $quantity = isset($_SESSION['cart'][$productId]) ? (int)$_SESSION['cart'][$productId] : 1;
-                $quantity = max(1, $quantity);
-
-                $imagePath = alke_product_image($row);
-
-                $subtotal = ((float)$row['price']) * $quantity;
-                $totalPrice += $subtotal;
-
-                $cartItems[] = [
-                    'id' => $productId,
-                    'name' => $row['name'],
-                    'price' => (float)$row['price'],
-                    'quantity' => $quantity,
-                    'image_path' => $imagePath,
-                    'subtotal' => $subtotal
-                ];
-            }
-        }
-    }
-}
 
 /*
   Simple payment hook placeholder for future gateway integration.
@@ -205,11 +174,13 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['confirm_order'])) {
         $conn->begin_transaction();
 
         try {
-            /* 1. Lock product rows and verify stock */
+            /* 1. Lock product rows and verify stock. Stock is per product, so
+                  sum the quantities of all its sizes/colors in the cart. */
+            $qtyByProduct = [];
             foreach ($cartItems as $item) {
-                $pid = (int)$item['id'];
-                $qty = (int)$item['quantity'];
-
+                $qtyByProduct[(int)$item['id']] = ($qtyByProduct[(int)$item['id']] ?? 0) + (int)$item['quantity'];
+            }
+            foreach ($qtyByProduct as $pid => $qty) {
                 $stmtLock = $conn->prepare("SELECT name, stock FROM products WHERE id = ? FOR UPDATE");
                 $stmtLock->bind_param('i', $pid);
                 $stmtLock->execute();
@@ -290,14 +261,16 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['confirm_order'])) {
             $stmtOrder->close();
 
             /* 3. Insert items and decrement stock */
-            $stmtItem  = $conn->prepare("INSERT INTO order_items (order_id, product_id, quantity) VALUES (?, ?, ?)");
+            $stmtItem  = $conn->prepare("INSERT INTO order_items (order_id, product_id, quantity, size, color) VALUES (?, ?, ?, ?, ?)");
             $stmtStock = $conn->prepare("UPDATE products SET stock = stock - ? WHERE id = ?");
 
             foreach ($cartItems as $item) {
-                $pid = (int)$item['id'];
-                $qty = (int)$item['quantity'];
+                $pid   = (int)$item['id'];
+                $qty   = (int)$item['quantity'];
+                $size  = $item['size'] !== '' ? $item['size'] : null;
+                $color = $item['color'] !== '' ? $item['color'] : null;
 
-                $stmtItem->bind_param("iii", $order_id, $pid, $qty);
+                $stmtItem->bind_param("iiiss", $order_id, $pid, $qty, $size, $color);
                 if (!$stmtItem->execute()) {
                     throw new Exception('Could not save your order items. Please try again.');
                 }
@@ -322,7 +295,11 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['confirm_order'])) {
                 $rows .= '<tr>'
                        . '<td style="padding:10px 0;border-bottom:1px solid #f0f0f0;color:#2a2a2a;">'
                        . htmlspecialchars($it['name'])
-                       . ' <span style="color:#8a8a8a;">× ' . (int)$it['quantity'] . '</span></td>'
+                       . ' <span style="color:#8a8a8a;">× ' . (int)$it['quantity'] . '</span>'
+                       . ($it['variant'] !== ''
+                           ? '<br><span style="color:#8a8a8a;font-size:13px;">' . htmlspecialchars($it['variant']) . '</span>'
+                           : '')
+                       . '</td>'
                        . '<td align="right" style="padding:10px 0;border-bottom:1px solid #f0f0f0;color:#2a2a2a;white-space:nowrap;">JD ' . number_format((float)$it['subtotal'], 2) . '</td>'
                        . '</tr>';
             }
@@ -421,7 +398,7 @@ include '../includes/header.php';
                   <img src="<?php echo htmlspecialchars($item['image_path']); ?>" alt="<?php echo htmlspecialchars($item['name']); ?>" class="checkout-item-thumb">
                   <div>
                     <p class="checkout-item-name"><?php echo htmlspecialchars($item['name']); ?></p>
-                    <p class="checkout-item-meta">Qty: <?php echo (int)$item['quantity']; ?> × JD <?php echo number_format((float)$item['price'], 2); ?></p>
+                    <p class="checkout-item-meta"><?php if ($item['variant'] !== '') echo htmlspecialchars($item['variant']) . ' · '; ?>Qty: <?php echo (int)$item['quantity']; ?> × JD <?php echo number_format((float)$item['price'], 2); ?></p>
                   </div>
                 </div>
                 <p class="checkout-item-subtotal">JD <?php echo number_format((float)$item['subtotal'], 2); ?></p>
@@ -624,7 +601,7 @@ include '../includes/header.php';
                       <img src="<?php echo htmlspecialchars($item['image_path']); ?>" alt="<?php echo htmlspecialchars($item['name']); ?>" class="checkout-item-thumb">
                       <div>
                         <p class="checkout-item-name"><?php echo htmlspecialchars($item['name']); ?></p>
-                        <p class="checkout-item-meta">Qty: <?php echo (int)$item['quantity']; ?> × JD <?php echo number_format((float)$item['price'], 2); ?></p>
+                        <p class="checkout-item-meta"><?php if ($item['variant'] !== '') echo htmlspecialchars($item['variant']) . ' · '; ?>Qty: <?php echo (int)$item['quantity']; ?> × JD <?php echo number_format((float)$item['price'], 2); ?></p>
                       </div>
                     </div>
                     <p class="checkout-item-subtotal">JD <?php echo number_format((float)$item['subtotal'], 2); ?></p>

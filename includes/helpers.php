@@ -234,3 +234,170 @@ if (!function_exists('alke_security_headers')) {
         }
     }
 }
+
+/* ── Variant-aware cart ───────────────────────────────────────
+ * $_SESSION['cart'] = [ "pid|size|color" => ['id'=>int,'qty'=>int,'size'=>str,'color'=>str] ]
+ * Each size/color combination is its own line. Stock is tracked per product,
+ * so the quantities of all its variants together may not exceed it.
+ */
+if (!function_exists('alke_cart_key')) {
+    function alke_cart_key(int $pid, string $size, string $color): string
+    {
+        return $pid . '|' . $size . '|' . $color;
+    }
+
+    /** Ensure the cart exists and upgrade legacy [productId => qty] entries. */
+    function alke_cart_init(): void
+    {
+        if (!isset($_SESSION['cart']) || !is_array($_SESSION['cart'])) {
+            $_SESSION['cart'] = [];
+            return;
+        }
+        foreach ($_SESSION['cart'] as $key => $line) {
+            if (is_array($line)) continue;
+            unset($_SESSION['cart'][$key]);
+            $pid = (int)$key;
+            $qty = (int)$line;
+            if ($pid > 0 && $qty > 0) {
+                $_SESSION['cart'][alke_cart_key($pid, '', '')] = ['id' => $pid, 'qty' => $qty, 'size' => '', 'color' => ''];
+            }
+        }
+    }
+
+    function alke_cart_count(): int
+    {
+        alke_cart_init();
+        $n = 0;
+        foreach ($_SESSION['cart'] as $line) $n += (int)$line['qty'];
+        return $n;
+    }
+
+    /** Units of a product already in the cart, optionally ignoring one line. */
+    function alke_cart_product_qty(int $pid, string $exceptKey = ''): int
+    {
+        $n = 0;
+        foreach ($_SESSION['cart'] as $key => $line) {
+            if ((int)$line['id'] === $pid && $key !== $exceptKey) $n += (int)$line['qty'];
+        }
+        return $n;
+    }
+
+    /** The submitted option if the product offers it, else its first option, else ''. */
+    function alke_cart_option(?string $csv, string $wanted): string
+    {
+        $opts = array_values(array_filter(array_map('trim', explode(',', (string)$csv)), 'strlen'));
+        if (!$opts) return '';
+        return in_array($wanted, $opts, true) ? $wanted : $opts[0];
+    }
+
+    /** "Black / M" style label for a line (empty if the product has no options). */
+    function alke_variant_label(?string $size, ?string $color): string
+    {
+        return implode(' / ', array_filter([trim((string)$color), trim((string)$size)], 'strlen'));
+    }
+
+    /** Add units of a size/color. Returns [ok, message]. */
+    function alke_cart_add(mysqli $conn, int $pid, int $qty, string $size, string $color): array
+    {
+        alke_cart_init();
+        $stmt = $conn->prepare("SELECT stock, sizes, colors FROM products WHERE id = ? LIMIT 1");
+        $stmt->bind_param('i', $pid);
+        $stmt->execute();
+        $p = $stmt->get_result()->fetch_assoc();
+        $stmt->close();
+        if (!$p) return [false, 'Product not found.'];
+
+        $stock = (int)$p['stock'];
+        if ($stock <= 0) return [false, 'This product is out of stock.'];
+
+        $size  = alke_cart_option($p['sizes'] ?? '', trim($size));
+        $color = alke_cart_option($p['colors'] ?? '', trim($color));
+        $key   = alke_cart_key($pid, $size, $color);
+        $room  = $stock - alke_cart_product_qty($pid, $key);
+        $want  = (int)($_SESSION['cart'][$key]['qty'] ?? 0) + max(1, $qty);
+
+        if ($room <= 0) return [false, 'Only ' . $stock . ' in stock — already in your cart.'];
+        $_SESSION['cart'][$key] = ['id' => $pid, 'qty' => min($want, $room), 'size' => $size, 'color' => $color];
+        return $want > $room ? [false, 'Only ' . $stock . ' in stock — quantity adjusted.'] : [true, ''];
+    }
+
+    /** Set a line's quantity (0 removes it). Returns [ok, message]. */
+    function alke_cart_set_qty(mysqli $conn, string $key, int $qty): array
+    {
+        alke_cart_init();
+        if (!isset($_SESSION['cart'][$key])) return [false, 'Item not found in your cart.'];
+        if ($qty <= 0) {
+            unset($_SESSION['cart'][$key]);
+            return [true, ''];
+        }
+        $pid  = (int)$_SESSION['cart'][$key]['id'];
+        $stmt = $conn->prepare("SELECT stock FROM products WHERE id = ? LIMIT 1");
+        $stmt->bind_param('i', $pid);
+        $stmt->execute();
+        $p = $stmt->get_result()->fetch_assoc();
+        $stmt->close();
+
+        $room = ($p ? (int)$p['stock'] : 0) - alke_cart_product_qty($pid, $key);
+        if ($qty > $room) {
+            $_SESSION['cart'][$key]['qty'] = max(1, $room);
+            return [false, 'Only ' . max(0, (int)($p['stock'] ?? 0)) . ' in stock — quantity adjusted.'];
+        }
+        $_SESSION['cart'][$key]['qty'] = $qty;
+        return [true, ''];
+    }
+
+    /** Cart lines joined with product data; lines for deleted products are dropped. */
+    function alke_cart_lines(mysqli $conn): array
+    {
+        alke_cart_init();
+        if (!$_SESSION['cart']) return [];
+
+        $ids = array_unique(array_map(fn($l) => (int)$l['id'], $_SESSION['cart']));
+        $products = [];
+        if ($res = $conn->query("SELECT * FROM products WHERE id IN (" . implode(',', $ids) . ")")) {
+            while ($row = $res->fetch_assoc()) $products[(int)$row['id']] = $row;
+        }
+
+        $lines = [];
+        foreach ($_SESSION['cart'] as $key => $line) {
+            $pid = (int)$line['id'];
+            if (!isset($products[$pid])) {
+                unset($_SESSION['cart'][$key]);
+                continue;
+            }
+            $qty = max(1, (int)$line['qty']);
+            $row = $products[$pid];
+            $lines[] = $row + [
+                'key'        => $key,
+                'quantity'   => $qty,
+                'size'       => (string)$line['size'],
+                'color'      => (string)$line['color'],
+                'variant'    => alke_variant_label($line['size'], $line['color']),
+                'image_path' => alke_product_image($row),
+                'subtotal'   => (float)$row['price'] * $qty,
+            ];
+        }
+        return $lines;
+    }
+
+    function alke_cart_total(array $lines): float
+    {
+        return (float)array_sum(array_column($lines, 'subtotal'));
+    }
+}
+
+/* ── order_items size/color columns (added on first use) ──── */
+if (!function_exists('alke_ensure_order_item_variants')) {
+    function alke_ensure_order_item_variants(mysqli $conn): void
+    {
+        static $done = false;
+        if ($done) return;
+        $done = true;
+        foreach (['size' => 'VARCHAR(30)', 'color' => 'VARCHAR(40)'] as $col => $type) {
+            $chk = $conn->query("SHOW COLUMNS FROM order_items LIKE '$col'");
+            if ($chk && $chk->num_rows === 0) {
+                $conn->query("ALTER TABLE order_items ADD COLUMN $col $type DEFAULT NULL");
+            }
+        }
+    }
+}

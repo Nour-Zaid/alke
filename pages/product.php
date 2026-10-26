@@ -3,32 +3,16 @@ session_start();
 include '../config/db.php';
 include '../includes/helpers.php';
 
-if (!isset($_SESSION['cart'])) {
-    $_SESSION['cart'] = [];
-}
+alke_cart_init();
 
+// Fallback for browsers without JS (the page normally adds via /alke/update_cart).
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_to_cart'])) {
     $productIdPost = isset($_POST['product_id']) ? (int)$_POST['product_id'] : 0;
     $quantityPost  = isset($_POST['quantity']) ? max(1, (int)$_POST['quantity']) : 1;
 
     if (alke_csrf_check() && $productIdPost > 0) {
-        // Validate against stock before adding
-        $stmtStock = $conn->prepare("SELECT stock FROM products WHERE id = ? LIMIT 1");
-        if ($stmtStock) {
-            $stmtStock->bind_param('i', $productIdPost);
-            $stmtStock->execute();
-            $resStock = $stmtStock->get_result();
-            if ($resStock && ($rowStock = $resStock->fetch_assoc())) {
-                $stock   = (int)$rowStock['stock'];
-                $current = isset($_SESSION['cart'][$productIdPost]) ? (int)$_SESSION['cart'][$productIdPost] : 0;
-                $newQty  = min($stock, $current + $quantityPost);
-
-                if ($newQty > 0) {
-                    $_SESSION['cart'][$productIdPost] = $newQty;
-                }
-            }
-            $stmtStock->close();
-        }
+        alke_cart_add($conn, $productIdPost, $quantityPost,
+            (string)($_POST['size'] ?? ''), (string)($_POST['color'] ?? ''));
     }
 
     header('Location: /alke/product?id=' . $productIdPost . '&added=1');

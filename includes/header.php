@@ -11,41 +11,19 @@ $miniCartItems = [];
 $miniCartTotal = 0;
 $miniCartCount = 0;
 
-if (!isset($_SESSION['cart'])) {
-    $_SESSION['cart'] = [];
-}
+$miniCartCount = alke_cart_count();
 
-$miniCartCount = array_sum(array_map('intval', $_SESSION['cart']));
-
-if (!empty($_SESSION['cart'])) {
-    $ids = array_map('intval', array_keys($_SESSION['cart']));
-    if (!empty($ids)) {
-        $idsList = implode(',', $ids);
-        $miniResult = $conn->query("SELECT * FROM products WHERE id IN ($idsList)");
-
-        if ($miniResult) {
-            while ($row = $miniResult->fetch_assoc()) {
-                $pid = (int)$row['id'];
-                $qty = isset($_SESSION['cart'][$pid]) ? (int)$_SESSION['cart'][$pid] : 1;
-                if ($qty < 1) {
-                    $qty = 1;
-                }
-
-                $imagePath = alke_product_image($row);
-                $lineTotal = ((float)$row['price']) * $qty;
-                $miniCartTotal += $lineTotal;
-
-                $miniCartItems[] = [
-                    'id' => $pid,
-                    'name' => $row['name'],
-                    'price' => (float)$row['price'],
-                    'qty' => $qty,
-                    'image' => $imagePath,
-                    'line_total' => $lineTotal
-                ];
-            }
-        }
-    }
+foreach (alke_cart_lines($conn) as $line) {
+    $miniCartTotal += $line['subtotal'];
+    $miniCartItems[] = [
+        'id'         => (int)$line['id'],
+        'name'       => $line['name'],
+        'variant'    => $line['variant'],
+        'price'      => (float)$line['price'],
+        'qty'        => $line['quantity'],
+        'image'      => $line['image_path'],
+        'line_total' => $line['subtotal'],
+    ];
 }
 ?>
 <!DOCTYPE html>
@@ -117,6 +95,9 @@ if (!empty($_SESSION['cart'])) {
               <a href="/alke/product?id=<?php echo (int)$item['id']; ?>" class="mini-cart-name-link">
                 <p class="mini-cart-name"><?php echo htmlspecialchars($item['name']); ?></p>
               </a>
+              <?php if ($item['variant'] !== ''): ?>
+                <p class="mini-cart-meta"><?php echo htmlspecialchars($item['variant']); ?></p>
+              <?php endif; ?>
               <p class="mini-cart-meta">Qty: <?php echo (int)$item['qty']; ?> • JD <?php echo number_format((float)$item['line_total'], 2); ?></p>
             </div>
           </div>
@@ -161,6 +142,7 @@ window.refreshMiniCart = function (miniCart) {
       + '<a href="/alke/product?id=' + item.id + '" class="mini-cart-name-link">'
       + '<p class="mini-cart-name">' + _esc(item.name) + '</p>'
       + '</a>'
+      + (item.variant ? '<p class="mini-cart-meta">' + _esc(item.variant) + '</p>' : '')
       + '<p class="mini-cart-meta">Qty: ' + item.qty + ' &bull; JD ' + item.line_total.toFixed(2) + '</p>'
       + '</div></div>';
   });

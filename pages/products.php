@@ -174,7 +174,10 @@ function alke_shop_url(array $overrides = []): string
               </a>
 
               <div class="product-card-actions">
-                <?php if ($inStock): ?>
+                <?php if ($inStock && (trim((string)$row['sizes']) !== '' || trim((string)$row['colors']) !== '')): ?>
+                  <!-- Has size/color options: the customer must pick them on the product page. -->
+                  <a href="/alke/product?id=<?php echo (int)$row['id']; ?>" class="btn product-btn">Choose Options</a>
+                <?php elseif ($inStock): ?>
                   <form method="POST" action="/alke/products" class="add-to-cart-form" data-product-id="<?php echo (int)$row['id']; ?>">
                     <input type="hidden" name="product_id" value="<?php echo (int)$row['id']; ?>">
                     <input type="hidden" name="quantity" value="1">

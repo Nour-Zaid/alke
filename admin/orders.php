@@ -110,14 +110,15 @@ $orders = $conn->query("
 $paymentLabels = ['cod' => 'Cash on Delivery', 'cliq' => 'CLIQ'];
 
 /* ── Fetch every item for every order in one query ──── */
+alke_ensure_order_item_variants($conn); // size + color columns
 $allItems = [];
 $itemsResult = $conn->query("
     SELECT oi.order_id, p.name AS product_name, p.image,
-           oi.quantity, p.price,
+           oi.quantity, oi.size, oi.color, p.price,
            (oi.quantity * p.price) AS subtotal
     FROM order_items oi
     JOIN products p ON oi.product_id = p.id
-    ORDER BY oi.order_id, p.name
+    ORDER BY oi.order_id, p.name, oi.id
 ");
 if ($itemsResult) {
     while ($item = $itemsResult->fetch_assoc()) {
@@ -285,7 +286,19 @@ include __DIR__ . '/includes/header.php';
                             <div style="display:flex; align-items:center; gap:10px;">
                               <img src="<?= htmlspecialchars($imgSrc) ?>" alt=""
                                    style="width:36px; height:46px; object-fit:cover; border-radius:3px; background:#eee; flex-shrink:0;">
-                              <span style="font-weight:500;"><?= htmlspecialchars($item['product_name']) ?></span>
+                              <div>
+                                <span style="font-weight:500;"><?= htmlspecialchars($item['product_name']) ?></span>
+                                <?php if (!empty($item['size']) || !empty($item['color'])): ?>
+                                  <div style="display:flex; flex-wrap:wrap; gap:6px; margin-top:4px;">
+                                    <?php if (!empty($item['size'])): ?>
+                                      <span style="background:#eef2ff; color:#3730a3; font-size:0.78rem; font-weight:600; padding:2px 8px; border-radius:10px;">Size: <?= htmlspecialchars($item['size']) ?></span>
+                                    <?php endif; ?>
+                                    <?php if (!empty($item['color'])): ?>
+                                      <span style="background:#f1f3f5; color:#333; font-size:0.78rem; font-weight:600; padding:2px 8px; border-radius:10px;">Color: <?= htmlspecialchars($item['color']) ?></span>
+                                    <?php endif; ?>
+                                  </div>
+                                <?php endif; ?>
+                              </div>
                             </div>
                           </td>
                           <td style="padding:8px 10px; text-align:center; color:#555;">

@@ -2,41 +2,10 @@
 session_start();
 include '../config/db.php';
 
-if (!isset($_SESSION['cart'])) {
-    $_SESSION['cart'] = [];
-}
-
 include '../includes/header.php';
 
-$cartItems = [];
-$totalPrice = 0;
-
-if (!empty($_SESSION['cart'])) {
-    $productIds = array_keys($_SESSION['cart']);
-    $safeIds = array_map('intval', $productIds);
-
-    if (!empty($safeIds)) {
-        $idsList = implode(',', $safeIds);
-        $query = "SELECT * FROM products WHERE id IN ($idsList)";
-        $result = $conn->query($query);
-
-        if ($result) {
-            while ($row = $result->fetch_assoc()) {
-                $productId = (int)$row['id'];
-                $quantity = isset($_SESSION['cart'][$productId]) ? (int)$_SESSION['cart'][$productId] : 1;
-                $price = (float)$row['price'];
-                $subtotal = $price * $quantity;
-
-                $row['image_path'] = alke_product_image($row);
-                $row['quantity'] = $quantity;
-                $row['subtotal'] = $subtotal;
-
-                $cartItems[] = $row;
-                $totalPrice += $subtotal;
-            }
-        }
-    }
-}
+$cartItems  = alke_cart_lines($conn);
+$totalPrice = alke_cart_total($cartItems);
 ?>
 
 <main class="products-page">
@@ -62,7 +31,7 @@ if (!empty($_SESSION['cart'])) {
             </thead>
             <tbody id="cartTableBody">
               <?php foreach ($cartItems as $item): ?>
-                <tr class="cart-row" data-product-id="<?php echo (int)$item['id']; ?>" data-price="<?php echo (float)$item['price']; ?>">
+                <tr class="cart-row" data-key="<?php echo htmlspecialchars($item['key'], ENT_QUOTES); ?>" data-price="<?php echo (float)$item['price']; ?>">
                   <td>
                     <a href="/alke/product?id=<?php echo (int)$item['id']; ?>" class="cart-thumb-link" aria-label="View <?php echo htmlspecialchars($item['name']); ?> details">
                       <img
@@ -72,7 +41,12 @@ if (!empty($_SESSION['cart'])) {
                       >
                     </a>
                   </td>
-                  <td class="cart-name-cell"><?php echo htmlspecialchars($item['name']); ?></td>
+                  <td class="cart-name-cell">
+                    <?php echo htmlspecialchars($item['name']); ?>
+                    <?php if ($item['variant'] !== ''): ?>
+                      <span class="cart-variant" style="display:block; font-size:0.82rem; color:var(--muted, #777); font-weight:400; margin-top:2px;"><?php echo htmlspecialchars($item['variant']); ?></span>
+                    <?php endif; ?>
+                  </td>
                   <td class="item-price" data-label="Price">JD <?php echo number_format((float)$item['price'], 2); ?></td>
                   <td data-label="Qty">
                     <div class="qty-control">
@@ -115,12 +89,12 @@ document.addEventListener('DOMContentLoaded', function () {
   const tableBody = document.getElementById('cartTableBody');
   const totalEl = document.getElementById('cartTotalText');
   const clearCartBtn = document.getElementById('clearCartBtn');
-  const qtyTimers = {}; // debounce server sync per product
+  const qtyTimers = {}; // debounce server sync per cart line
 
-  function postCart(action, productId, quantity) {
+  function postCart(action, key, quantity) {
     const data = new FormData();
     data.append('action', action);
-    data.append('product_id', productId || 0);
+    data.append('key', key || '');
     data.append('csrf_token', document.querySelector('meta[name="csrf-token"]')?.content || '');
     if (typeof quantity !== 'undefined') {
       data.append('quantity', quantity);
@@ -173,7 +147,7 @@ document.addEventListener('DOMContentLoaded', function () {
       const row = e.target.closest('.cart-row');
       if (!row) return;
 
-      const productId = row.getAttribute('data-product-id');
+      const lineKey = row.getAttribute('data-key');
       const unitPrice = parseFloat(row.getAttribute('data-price')) || 0;
       const qtyEl = row.querySelector('.qty-value');
       let currentQty = parseInt(qtyEl.textContent, 10) || 1;
@@ -193,10 +167,10 @@ document.addEventListener('DOMContentLoaded', function () {
         recalcTotal();
 
         // Debounced sync to the server (handles rapid taps, avoids races).
-        clearTimeout(qtyTimers[productId]);
-        qtyTimers[productId] = setTimeout(function () {
+        clearTimeout(qtyTimers[lineKey]);
+        qtyTimers[lineKey] = setTimeout(function () {
           const finalQty = row.parentNode ? (parseInt(qtyEl.textContent, 10) || 0) : 0;
-          postCart('update', productId, finalQty)
+          postCart('update', lineKey, finalQty)
             .then(function (data) {
               if (!data || !data.success) { window.location.reload(); return; }
               updateBadge(data.cart_count);
@@ -208,7 +182,7 @@ document.addEventListener('DOMContentLoaded', function () {
       }
 
       if (removeBtn) {
-        postCart('remove', productId)
+        postCart('remove', lineKey)
           .then(function (data) {
             if (!data || !data.success) {
               alert('Could not remove item.');
@@ -237,7 +211,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
   if (clearCartBtn) {
     clearCartBtn.addEventListener('click', function () {
-      postCart('clear', 1)
+      postCart('clear')
         .then(function () {
           window.location.reload();
         })

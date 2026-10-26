@@ -41,8 +41,9 @@ if ($orderId <= 0 || (!$isSessionOrder && !$isLoggedIn)) {
     if ($orderResult && $orderResult->num_rows > 0) {
         $order = $orderResult->fetch_assoc();
 
+        alke_ensure_order_item_variants($conn);
         $stmtItems = $conn->prepare("
-            SELECT oi.quantity, p.name, p.price
+            SELECT oi.quantity, oi.size, oi.color, p.name, p.price
             FROM order_items oi
             INNER JOIN products p ON oi.product_id = p.id
             WHERE oi.order_id = ?
@@ -139,7 +140,7 @@ if ($order && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['payment_pr
                   <div>
                     <p class="checkout-item-name"><?php echo htmlspecialchars($item['name']); ?></p>
                     <p class="checkout-item-meta">
-                      Qty: <?php echo (int)$item['quantity']; ?> × JD <?php echo number_format((float)$item['price'], 2); ?>
+                      <?php $v = alke_variant_label($item['size'] ?? '', $item['color'] ?? ''); if ($v !== '') echo htmlspecialchars($v) . ' · '; ?>Qty: <?php echo (int)$item['quantity']; ?> × JD <?php echo number_format((float)$item['price'], 2); ?>
                     </p>
                   </div>
                 </div>
