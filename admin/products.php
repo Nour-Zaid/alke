@@ -20,6 +20,7 @@ foreach (['sizes', 'colors'] as $col) {
 
 /* Multi-image gallery: ensure table + backfill legacy single images. */
 alke_ensure_product_images($conn);
+alke_ensure_size_stock($conn);
 
 /** Validate & store one uploaded image (by magic bytes). Returns [filename|null, error]. */
 function alke_admin_store_image(array $file): array
@@ -153,6 +154,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $sizes       = implode(',', array_filter(array_map('trim', (array)($_POST['sizes']  ?? []))));
         $colors      = implode(',', array_filter(array_map('trim', (array)($_POST['colors'] ?? []))));
 
+        // Per-size stock: tracked only when at least one checked size has a quantity
+        // entered; then the product's total stock becomes the sum of the sizes.
+        $sizeCounts = [];
+        $sizeQtyIn  = (array)($_POST['size_stock'] ?? []);
+        $anySizeQty = false;
+        foreach (array_filter(array_map('trim', (array)($_POST['sizes'] ?? []))) as $sz) {
+            $v = trim((string)($sizeQtyIn[$sz] ?? ''));
+            if ($v !== '') $anySizeQty = true;
+            $sizeCounts[$sz] = max(0, (int)$v);
+        }
+        if (!$anySizeQty) $sizeCounts = [];
+
         if ($name === '') {
             $message = 'Product name is required.';
             $messageType = 'danger';
@@ -179,6 +192,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $ok = $stmt->execute();
                     $newId = $ok ? (int)$conn->insert_id : 0;
                     $stmt->close();
+                    if ($ok && $newId > 0) alke_save_size_stock($conn, $newId, $sizeCounts);
 
                     if ($ok && $newId > 0 && $savedImages) {
                         $ins = $conn->prepare("INSERT INTO product_images (product_id, image, sort_order) VALUES (?, ?, ?)");
@@ -217,6 +231,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $ins->close();
                     }
                     if ($ok && $product_id > 0) alke_admin_sync_cover($conn, $product_id);
+                    if ($ok && $product_id > 0) alke_save_size_stock($conn, $product_id, $sizeCounts);
                     $message     = $ok ? 'Product updated successfully.' : 'Failed to update product: ' . $conn->error;
                     $messageType = $ok ? 'success' : 'danger';
                 }
@@ -382,6 +397,7 @@ $fStock        = '';
 $fCategoryId   = 0;
 $fCurrentImage = '';
 $fSizesArr     = [];
+$fSizeStock    = [];
 $fColorsArr    = [];
 
 if (!empty($message) && $messageType === 'danger' && $_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -394,6 +410,7 @@ if (!empty($message) && $messageType === 'danger' && $_SERVER['REQUEST_METHOD'] 
     $fCategoryId   = (int)($_POST['category_id'] ?? 0);
     $fCurrentImage = trim($_POST['current_image'] ?? '');
     $fSizesArr     = (array)($_POST['sizes']     ?? []);
+    $fSizeStock    = (array)($_POST['size_stock'] ?? []);
     $fColorsArr    = (array)($_POST['colors']    ?? []);
 }
 
@@ -418,6 +435,14 @@ $imagesByProduct = [];
 if ($rImgs = $conn->query("SELECT id, product_id, image FROM product_images ORDER BY sort_order, id")) {
     while ($ri = $rImgs->fetch_assoc()) {
         $imagesByProduct[(int)$ri['product_id']][] = ['id' => (int)$ri['id'], 'image' => (string)$ri['image']];
+    }
+}
+
+// Per-size stock grouped by product ([] for products not tracked by size).
+$sizeStockByProduct = [];
+if ($rSz = $conn->query("SELECT product_id, size, stock FROM product_size_stock")) {
+    while ($rs = $rSz->fetch_assoc()) {
+        $sizeStockByProduct[(int)$rs['product_id']][(string)$rs['size']] = (int)$rs['stock'];
     }
 }
 
@@ -512,14 +537,23 @@ include __DIR__ . '/includes/header.php';
 
       <div class="form-row form-row-2">
         <div class="form-group">
-          <label>Sizes Available</label>
-          <div class="checkbox-group" id="fSizesGroup">
+          <label>Sizes Available <span style="color:#aaa;font-weight:400;">— and how many of each</span></label>
+          <div class="checkbox-group" id="fSizesGroup" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(118px, 1fr)); gap:8px;">
             <?php foreach (['XS','S','M','L','XL','XXL'] as $sz): ?>
-              <label class="check-label">
-                <input type="checkbox" name="sizes[]" value="<?= $sz ?>" <?= in_array($sz, $fSizesArr) ? 'checked' : '' ?>> <?= $sz ?>
-              </label>
+              <div style="display:flex; align-items:center; gap:6px;">
+                <label class="check-label" style="min-width:48px;">
+                  <input type="checkbox" name="sizes[]" value="<?= $sz ?>" <?= in_array($sz, $fSizesArr) ? 'checked' : '' ?>> <?= $sz ?>
+                </label>
+                <input type="number" name="size_stock[<?= $sz ?>]" class="form-control size-qty" data-size="<?= $sz ?>"
+                       min="0" placeholder="qty" inputmode="numeric"
+                       value="<?= htmlspecialchars((string)($fSizeStock[$sz] ?? '')) ?>"
+                       style="width:64px; padding:4px 6px;">
+              </div>
             <?php endforeach; ?>
           </div>
+          <p id="sizeStockNote" style="font-size:0.78rem; color:#888; margin-top:6px;">
+            Enter a quantity per size and the total stock is calculated for you. Leave them empty to use the single Stock number.
+          </p>
         </div>
         <div class="form-group">
           <label>Colors Available</label>
@@ -598,7 +632,20 @@ include __DIR__ . '/includes/header.php';
                 <?= $s ?>
               </span>
             </td>
-            <td data-label="Sizes" style="font-size:0.78rem; color:#666; white-space:nowrap;"><?= htmlspecialchars($p['sizes']  ?? '') ?: '—' ?></td>
+            <td data-label="Sizes" style="font-size:0.78rem; color:#666; white-space:nowrap;">
+              <?php
+                $pSizeStock = $sizeStockByProduct[(int)$p['id']] ?? [];
+                $pSizes     = array_filter(array_map('trim', explode(',', (string)($p['sizes'] ?? ''))), 'strlen');
+              ?>
+              <?php if ($pSizeStock && $pSizes): ?>
+                <?php foreach ($pSizes as $sz): $n = (int)($pSizeStock[$sz] ?? 0); ?>
+                  <span style="display:inline-block; margin:1px 6px 1px 0;<?= $n === 0 ? ' color:#dc3545; font-weight:600;' : '' ?>"
+                        title="<?= $n === 0 ? 'Sold out' : $n . ' left' ?>"><?= htmlspecialchars($sz) ?> <strong><?= $n ?></strong></span>
+                <?php endforeach; ?>
+              <?php else: ?>
+                <?= htmlspecialchars($p['sizes'] ?? '') ?: '—' ?>
+              <?php endif; ?>
+            </td>
             <td data-label="Colors" style="font-size:0.78rem; color:#666; white-space:nowrap;"><?= htmlspecialchars($p['colors'] ?? '') ?: '—' ?></td>
             <td data-label="" style="white-space:nowrap;">
               <button
@@ -613,6 +660,7 @@ include __DIR__ . '/includes/header.php';
                 data-image="<?= htmlspecialchars($dbImg, ENT_QUOTES) ?>"
                 data-images='<?= htmlspecialchars(json_encode($imagesByProduct[(int)$p['id']] ?? [], JSON_UNESCAPED_SLASHES), ENT_QUOTES) ?>'
                 data-sizes="<?= htmlspecialchars($p['sizes'] ?? '', ENT_QUOTES) ?>"
+                data-size-stock='<?= htmlspecialchars(json_encode((object)($sizeStockByProduct[(int)$p['id']] ?? [])), ENT_QUOTES) ?>'
                 data-colors="<?= htmlspecialchars($p['colors'] ?? '', ENT_QUOTES) ?>"
               >Edit</button>
 
@@ -716,6 +764,50 @@ function uploadMoreImages() {
     });
 }
 
+// ── Per-size quantities ───────────────────────────────────────
+function sizeCheckbox(size) {
+  return document.querySelector('#fSizesGroup input[type="checkbox"][value="' + size + '"]');
+}
+// While any checked size has a quantity, Stock is their total and read-only.
+function syncSizeStock() {
+  var stock = document.getElementById('fStock');
+  var total = 0, any = false;
+  document.querySelectorAll('#fSizesGroup .size-qty').forEach(function (inp) {
+    var cb = sizeCheckbox(inp.dataset.size);
+    if (inp.value !== '' && cb && cb.checked) {
+      any = true;
+      total += Math.max(0, parseInt(inp.value, 10) || 0);
+    }
+  });
+  stock.readOnly = any;
+  stock.style.background = any ? '#f1f3f5' : '';
+  if (any) stock.value = total;
+}
+function setSizeStock(json) {
+  var counts = {};
+  try { counts = JSON.parse(json || '{}') || {}; } catch (e) { counts = {}; }
+  document.querySelectorAll('#fSizesGroup .size-qty').forEach(function (inp) {
+    inp.value = Object.prototype.hasOwnProperty.call(counts, inp.dataset.size) ? counts[inp.dataset.size] : '';
+  });
+  syncSizeStock();
+}
+document.querySelectorAll('#fSizesGroup .size-qty').forEach(function (inp) {
+  inp.addEventListener('input', function () {
+    var cb = sizeCheckbox(inp.dataset.size);
+    if (cb && inp.value !== '') cb.checked = true; // typing a qty selects the size
+    syncSizeStock();
+  });
+});
+document.querySelectorAll('#fSizesGroup input[type="checkbox"]').forEach(function (cb) {
+  cb.addEventListener('change', function () {
+    if (!cb.checked) {
+      var q = document.querySelector('#fSizesGroup .size-qty[data-size="' + cb.value + '"]');
+      if (q) q.value = '';
+    }
+    syncSizeStock();
+  });
+});
+
 function setCheckboxes(groupId, csv) {
   var vals = csv ? csv.split(',').map(function(v){ return v.trim(); }) : [];
   document.querySelectorAll('#' + groupId + ' input[type="checkbox"]').forEach(function(cb) {
@@ -740,6 +832,7 @@ function openAddForm() {
   renderExistingImages('[]');
   document.getElementById('addImagesBtn').style.display = 'none';
   setCheckboxes('fSizesGroup', '');
+  setSizeStock('{}');
   setCheckboxes('fColorsGroup', '');
 
   var panel = document.getElementById('productFormPanel');
@@ -765,6 +858,7 @@ document.querySelectorAll('.edit-btn').forEach(function (btn) {
     renderExistingImages(btn.dataset.images);
     document.getElementById('addImagesBtn').style.display      = 'inline-block';
     setCheckboxes('fSizesGroup',  btn.dataset.sizes  || '');
+    setSizeStock(btn.dataset.sizeStock);
     setCheckboxes('fColorsGroup', btn.dataset.colors || '');
 
     var panel = document.getElementById('productFormPanel');
@@ -797,6 +891,7 @@ function previewImgs(input) {
 // If there was a form error, keep the form open with correct state
 <?php if (!empty($message) && $messageType === 'danger'): ?>
 document.getElementById('productFormPanel').style.display = 'block';
+syncSizeStock();
 document.getElementById('formPanelTitle').textContent = '<?= $fAction === 'edit_product' ? 'Edit Product' : 'Add New Product' ?>';
 document.getElementById('fSubmitBtn').textContent     = '<?= $fAction === 'edit_product' ? 'Save Changes' : 'Add Product' ?>';
 <?php endif; ?>

@@ -79,6 +79,15 @@ if ($productId > 0) {
           $stock     = (int)$product['stock'];
           $inStock   = $stock > 0;
           $maxQty    = min(10, max(1, $stock));
+          // Per-size stock (empty when this product isn't tracked by size).
+          $sizeStock   = $sizesArr ? alke_size_stock($conn, (int)$product['id']) : [];
+          $defaultSize = '';
+          if ($sizeStock) {
+              foreach ($sizesArr as $sz) {
+                  if (($sizeStock[$sz] ?? 0) > 0) { $defaultSize = $sz; break; } // first size still available
+              }
+              $maxQty = min(10, max(1, (int)($sizeStock[$defaultSize] ?? 1)));
+          }
           // Table/backfill is maintained by the admin; the storefront just reads
           // (and falls back to the single cover image if the gallery is empty).
           $gallery   = alke_product_images($conn, (int)$product['id'], $product['image'] ?? null);
@@ -171,8 +180,14 @@ if ($productId > 0) {
                 <div class="option-group">
                   <label for="productSize">Size</label>
                   <select id="productSize" name="size">
-                    <?php foreach ($sizesArr as $sz): ?>
-                      <option value="<?= alke_esc($sz) ?>"><?= alke_esc($sz) ?></option>
+                    <?php foreach ($sizesArr as $sz):
+                      $n = $sizeStock ? (int)($sizeStock[$sz] ?? 0) : null; ?>
+                      <option value="<?= alke_esc($sz) ?>"
+                        <?= $n !== null ? 'data-stock="' . $n . '"' : '' ?>
+                        <?= $n === 0 ? 'disabled' : '' ?>
+                        <?= $sz === $defaultSize ? 'selected' : '' ?>>
+                        <?= alke_esc($sz) ?><?= $n === 0 ? ' — Out of stock' : ($n !== null && $n <= 3 ? ' — Only ' . $n . ' left' : '') ?>
+                      </option>
                     <?php endforeach; ?>
                   </select>
                 </div>
@@ -298,6 +313,26 @@ if ($productId > 0) {
         btn.disabled = false;
         form.submit();
       });
+  });
+})();
+
+// Per-size stock: cap the quantity dropdown at what's left in the chosen size.
+(function () {
+  var sizeSel = document.getElementById('productSize');
+  var qtySel  = document.getElementById('productQty');
+  if (!sizeSel || !qtySel) return;
+  sizeSel.addEventListener('change', function () {
+    var opt = sizeSel.options[sizeSel.selectedIndex];
+    if (!opt || !opt.hasAttribute('data-stock')) return; // not tracked by size
+    var max  = Math.min(10, Math.max(1, parseInt(opt.getAttribute('data-stock'), 10) || 1));
+    var keep = Math.min(parseInt(qtySel.value, 10) || 1, max);
+    qtySel.innerHTML = '';
+    for (var q = 1; q <= max; q++) {
+      var o = document.createElement('option');
+      o.value = q; o.textContent = q;
+      if (q === keep) o.selected = true;
+      qtySel.appendChild(o);
+    }
   });
 })();
 

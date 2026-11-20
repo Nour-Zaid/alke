@@ -34,9 +34,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'delet
     if ($orderId > 0) {
         $conn->begin_transaction();
         try {
-            // Return each line item's quantity to product stock.
+            // Return each line item's quantity to product stock (and to its size, if size-tracked).
+            alke_ensure_order_item_variants($conn);
+            alke_ensure_size_stock($conn);
             $restore = 0;
-            $sel = $conn->prepare("SELECT product_id, quantity FROM order_items WHERE order_id = ?");
+            $sel = $conn->prepare("SELECT product_id, quantity, size FROM order_items WHERE order_id = ?");
             $sel->bind_param('i', $orderId);
             $sel->execute();
             $res = $sel->get_result();
@@ -44,14 +46,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'delet
             while ($r = $res->fetch_assoc()) { $lines[] = $r; }
             $sel->close();
 
-            $upd = $conn->prepare("UPDATE products SET stock = stock + ? WHERE id = ?");
+            $upd     = $conn->prepare("UPDATE products SET stock = stock + ? WHERE id = ?");
+            $updSize = $conn->prepare("UPDATE product_size_stock SET stock = stock + ? WHERE product_id = ? AND size = ?");
             foreach ($lines as $ln) {
-                $q = (int)$ln['quantity']; $pid = (int)$ln['product_id'];
+                $q = (int)$ln['quantity']; $pid = (int)$ln['product_id']; $sz = (string)($ln['size'] ?? '');
                 $upd->bind_param('ii', $q, $pid);
                 $upd->execute();
+                if ($sz !== '') {
+                    $updSize->bind_param('iis', $q, $pid, $sz);
+                    $updSize->execute();
+                }
                 $restore += $q;
             }
             $upd->close();
+            $updSize->close();
 
             // Grab the proof path (if any) so we can clean up the file after commit.
             $proofPath = null;

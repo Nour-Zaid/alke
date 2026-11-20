@@ -49,6 +49,7 @@ $cliqBusinessName = 'Sharikat Rowad Al-Aqmisha for design &amp; manufacturing of
 
 /* order_items gets size + color columns (added once, if missing). */
 alke_ensure_order_item_variants($conn);
+alke_ensure_size_stock($conn);
 
 $cartItems    = alke_cart_lines($conn); // one line per product + size + color
 $totalPrice   = alke_cart_total($cartItems);
@@ -194,7 +195,35 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['confirm_order'])) {
                 if ((int)$lockRow['stock'] < $qty) {
                     throw new Exception('"' . $lockRow['name'] . '" only has ' . (int)$lockRow['stock'] . ' in stock. Please update your cart.');
                 }
+                $productNames[$pid] = $lockRow['name'];
             }
+
+            /* 1b. Products with per-size stock: lock each size's row and check it too. */
+            $qtyBySize = [];
+            foreach ($cartItems as $item) {
+                $qtyBySize[(int)$item['id']][$item['size']] = ($qtyBySize[(int)$item['id']][$item['size']] ?? 0) + (int)$item['quantity'];
+            }
+            $stmtSizeLock = $conn->prepare("SELECT size, stock FROM product_size_stock WHERE product_id = ? FOR UPDATE");
+            foreach ($qtyBySize as $pid => $sizes) {
+                $stmtSizeLock->bind_param('i', $pid);
+                $stmtSizeLock->execute();
+                $sizeRes = $stmtSizeLock->get_result();
+                $sizeStock = [];
+                while ($sr = $sizeRes->fetch_assoc()) $sizeStock[(string)$sr['size']] = (int)$sr['stock'];
+                if (!$sizeStock) continue; // not size-tracked
+
+                foreach ($sizes as $size => $qty) {
+                    $size  = (string)$size;
+                    $avail = $sizeStock[$size] ?? 0;
+                    if ($size === '' || $avail < $qty) {
+                        throw new Exception('"' . $productNames[$pid] . '"'
+                            . ($size === '' ? ' needs a size — please remove it and add it again.'
+                                            : ' in size ' . $size . ($avail > 0 ? ' only has ' . $avail . ' left.' : ' is sold out.'))
+                            . ' Please update your cart.');
+                    }
+                }
+            }
+            $stmtSizeLock->close();
 
             /* 2. Coupon: re-validate and atomically claim a use (single-use safe).
                   The discount is always recomputed from the DB, never trusted. */
@@ -263,6 +292,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['confirm_order'])) {
             /* 3. Insert items and decrement stock */
             $stmtItem  = $conn->prepare("INSERT INTO order_items (order_id, product_id, quantity, size, color) VALUES (?, ?, ?, ?, ?)");
             $stmtStock = $conn->prepare("UPDATE products SET stock = stock - ? WHERE id = ?");
+            // No-op for products without per-size rows.
+            $stmtSizeStock = $conn->prepare("UPDATE product_size_stock SET stock = stock - ? WHERE product_id = ? AND size = ?");
 
             foreach ($cartItems as $item) {
                 $pid   = (int)$item['id'];
@@ -279,10 +310,17 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['confirm_order'])) {
                 if (!$stmtStock->execute()) {
                     throw new Exception('Could not update product stock. Please try again.');
                 }
+
+                $sizeKey = (string)$item['size'];
+                $stmtSizeStock->bind_param("iis", $qty, $pid, $sizeKey);
+                if (!$stmtSizeStock->execute()) {
+                    throw new Exception('Could not update size stock. Please try again.');
+                }
             }
 
             $stmtItem->close();
             $stmtStock->close();
+            $stmtSizeStock->close();
 
             $conn->commit();
 

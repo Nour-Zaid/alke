@@ -313,12 +313,12 @@ if (!function_exists('alke_cart_key')) {
         $size  = alke_cart_option($p['sizes'] ?? '', trim($size));
         $color = alke_cart_option($p['colors'] ?? '', trim($color));
         $key   = alke_cart_key($pid, $size, $color);
-        $room  = $stock - alke_cart_product_qty($pid, $key);
+        [$room, $limitMsg] = alke_cart_room($conn, $pid, $size, $key, $stock);
         $want  = (int)($_SESSION['cart'][$key]['qty'] ?? 0) + max(1, $qty);
 
-        if ($room <= 0) return [false, 'Only ' . $stock . ' in stock — already in your cart.'];
+        if ($room <= 0) return [false, $limitMsg];
         $_SESSION['cart'][$key] = ['id' => $pid, 'qty' => min($want, $room), 'size' => $size, 'color' => $color];
-        return $want > $room ? [false, 'Only ' . $stock . ' in stock — quantity adjusted.'] : [true, ''];
+        return $want > $room ? [false, $limitMsg . ' Quantity adjusted.'] : [true, ''];
     }
 
     /** Set a line's quantity (0 removes it). Returns [ok, message]. */
@@ -337,10 +337,11 @@ if (!function_exists('alke_cart_key')) {
         $p = $stmt->get_result()->fetch_assoc();
         $stmt->close();
 
-        $room = ($p ? (int)$p['stock'] : 0) - alke_cart_product_qty($pid, $key);
+        [$room, $limitMsg] = alke_cart_room($conn, $pid, (string)$_SESSION['cart'][$key]['size'], $key,
+                                            $p ? (int)$p['stock'] : 0);
         if ($qty > $room) {
             $_SESSION['cart'][$key]['qty'] = max(1, $room);
-            return [false, 'Only ' . max(0, (int)($p['stock'] ?? 0)) . ' in stock — quantity adjusted.'];
+            return [false, $limitMsg . ' Quantity adjusted.'];
         }
         $_SESSION['cart'][$key]['qty'] = $qty;
         return [true, ''];
@@ -399,5 +400,97 @@ if (!function_exists('alke_ensure_order_item_variants')) {
                 $conn->query("ALTER TABLE order_items ADD COLUMN $col $type DEFAULT NULL");
             }
         }
+    }
+}
+
+/* ── Per-size stock ───────────────────────────────────────────
+ * product_size_stock holds a count per (product, size). A product is
+ * "size-tracked" once it has rows there; products.stock is then kept equal
+ * to their sum so listings and out-of-stock badges keep working. Products
+ * without rows keep using products.stock alone, as before.
+ */
+if (!function_exists('alke_ensure_size_stock')) {
+    function alke_ensure_size_stock(mysqli $conn): void
+    {
+        static $done = false;
+        if ($done) return;
+        $done = true;
+        $conn->query("
+            CREATE TABLE IF NOT EXISTS product_size_stock (
+                product_id INT NOT NULL,
+                size VARCHAR(30) NOT NULL,
+                stock INT NOT NULL DEFAULT 0,
+                PRIMARY KEY (product_id, size),
+                CONSTRAINT fk_pss_product FOREIGN KEY (product_id)
+                    REFERENCES products(id) ON DELETE CASCADE ON UPDATE CASCADE
+            )
+        ");
+    }
+
+    /** ['S' => 5, 'M' => 0, ...] for a size-tracked product, [] otherwise. */
+    function alke_size_stock(mysqli $conn, int $pid): array
+    {
+        alke_ensure_size_stock($conn);
+        $out  = [];
+        $stmt = $conn->prepare("SELECT size, stock FROM product_size_stock WHERE product_id = ?");
+        $stmt->bind_param('i', $pid);
+        $stmt->execute();
+        $res = $stmt->get_result();
+        while ($row = $res->fetch_assoc()) $out[(string)$row['size']] = (int)$row['stock'];
+        $stmt->close();
+        return $out;
+    }
+
+    /** Replace a product's per-size counts ([] stops size tracking); syncs products.stock to the sum. */
+    function alke_save_size_stock(mysqli $conn, int $pid, array $counts): void
+    {
+        alke_ensure_size_stock($conn);
+        $del = $conn->prepare("DELETE FROM product_size_stock WHERE product_id = ?");
+        $del->bind_param('i', $pid);
+        $del->execute();
+        $del->close();
+        if (!$counts) return;
+
+        $ins = $conn->prepare("INSERT INTO product_size_stock (product_id, size, stock) VALUES (?, ?, ?)");
+        $total = 0;
+        foreach ($counts as $size => $n) {
+            $size = (string)$size;
+            $n    = max(0, (int)$n);
+            $total += $n;
+            $ins->bind_param('isi', $pid, $size, $n);
+            $ins->execute();
+        }
+        $ins->close();
+
+        $upd = $conn->prepare("UPDATE products SET stock = ? WHERE id = ?");
+        $upd->bind_param('ii', $total, $pid);
+        $upd->execute();
+        $upd->close();
+    }
+
+    /** Units of one product + size already in the cart (all colors), optionally ignoring one line. */
+    function alke_cart_size_qty(int $pid, string $size, string $exceptKey = ''): int
+    {
+        $n = 0;
+        foreach ($_SESSION['cart'] as $key => $line) {
+            if ((int)$line['id'] === $pid && (string)$line['size'] === $size && $key !== $exceptKey) {
+                $n += (int)$line['qty'];
+            }
+        }
+        return $n;
+    }
+
+    /** How many more of this line can go in the cart, plus the message to show at the limit. */
+    function alke_cart_room(mysqli $conn, int $pid, string $size, string $key, int $productStock): array
+    {
+        $sizeStock = alke_size_stock($conn, $pid);
+        if ($sizeStock) {
+            $avail = (int)($sizeStock[$size] ?? 0);
+            return [
+                $avail - alke_cart_size_qty($pid, $size, $key),
+                $avail > 0 ? 'Only ' . $avail . ' left in size ' . $size . '.' : 'Size ' . $size . ' is out of stock.',
+            ];
+        }
+        return [$productStock - alke_cart_product_qty($pid, $key), 'Only ' . $productStock . ' in stock.'];
     }
 }
